@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/api';
 import type { SolicitudConSistemas } from '../types/models';
+import { ProgressBar } from '../components/ProgressBar';
+import { toast } from 'sonner';
 
+/**
+ * Componente para la lista de solicitudes pendientes de validación por parte del Jefe.
+ * Permite al jefe aprobar o rechazar solicitudes.
+ */
 export const JefeValidationList: React.FC = () => {
     const [pendientes, setPendientes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
 
+    /**
+     * Carga las solicitudes que requieren validación por parte del Jefe.
+     * Señalización para API Real: Reemplazar por endpoint de producción.
+     */
     const loadData = async () => {
         setLoading(true);
         try {
@@ -13,36 +23,61 @@ export const JefeValidationList: React.FC = () => {
             setPendientes(data);
         } catch (e) {
             console.error(e);
+            toast.error('Error al cargar validaciones pendientes.');
         } finally {
             setLoading(false);
         }
     };
 
+    /**
+     * Hook de efecto para cargar los datos al montar el componente.
+     */
     useEffect(() => {
         loadData();
     }, []);
 
+    /**
+     * Aprueba definitivamente una solicitud.
+     * @param id El ID de la solicitud a aprobar.
+     */
     const handleAprobar = async (id: string) => {
-        // Bypass confirm
         try {
             await api.aprobarSolicitud(id);
-            // alert('Solicitud aprobada y usuario creado.');
+            toast.success('Solicitud aprobada y proceso completado.');
             loadData();
         } catch (e) {
             console.error(e);
+            toast.error('Error al aprobar la solicitud.');
         }
     };
 
+    /**
+     * Rechaza u observa una solicitud, devolviéndola al inicio.
+     * @param id El ID de la solicitud a rechazar/observar.
+     */
     const handleRechazar = async (id: string) => {
-        // Bypass prompt
-        const motivo = "Rechazo automático";
+        const motivo = "Observado por Jefatura";
         try {
             await api.rechazarSolicitud(id, motivo);
-            // alert('Solicitud rechazada/observada.');
+            toast.info('Solicitud devuelta para corrección.');
             loadData();
         } catch (e) {
             console.error(e);
+            toast.error('Error al rechazar la solicitud.');
         }
+    };
+
+    /**
+     * Calcula el progreso de una solicitud basándose en sus sistemas.
+     * @param sol La solicitud para calcular el progreso.
+     * @returns El porcentaje de progreso.
+     */
+    const calcularProgreso = (sol: SolicitudConSistemas): number => {
+        if (!sol.sistemas || sol.sistemas.length === 0) {
+            return 0;
+        }
+        const completados = sol.sistemas.filter(s => s.estadoAtencion === 'COMPLETADO').length;
+        return (completados / sol.sistemas.length) * 100;
     };
 
     return (
@@ -68,6 +103,15 @@ export const JefeValidationList: React.FC = () => {
                             <p className="text-sm text-gray-500">{sol.cargo} • Oficina: {sol.oficinaId}</p>
                             <div className={`text-xs font-medium mt-1 ${sol.tipo === 'BAJA' ? 'text-red-500' : 'text-blue-600'}`}>
                                 {sol.tipo} • Esperando aprobación final
+                            </div>
+
+                            {/* Progreso de la solicitud */}
+                            <div className="mt-4 w-64">
+                                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-1">
+                                    <span>Progreso</span>
+                                    <span>{Math.round(calcularProgreso(sol))}%</span>
+                                </div>
+                                <ProgressBar value={calcularProgreso(sol)} />
                             </div>
                         </div>
                         <div className="flex gap-3">

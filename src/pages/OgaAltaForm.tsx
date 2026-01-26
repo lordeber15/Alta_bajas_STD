@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/api';
-import type { Oficina, Sistema, SolicitudConSistemas } from '../types/models';
+import type { Oficina, Sistema, SolicitudConSistemas, Usuario } from '../types/models';
+import { toast } from 'sonner';
 
 interface OgaAltaFormProps {
     solicitudEdit?: SolicitudConSistemas; // Si viene, es edición
+    initialUser?: Usuario; // Si viene, es pre-llenado para alta
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSuccess, onCancel }) => {
+export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initialUser, onSuccess, onCancel }) => {
     const [oficinas, setOficinas] = useState<Oficina[]>([]);
     const [sistemas, setSistemas] = useState<Sistema[]>([]);
 
@@ -22,7 +24,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
     const [seleccionSistemas, setSeleccionSistemas] = useState<Record<string, { selected: boolean; detalle: string }>>({});
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ getText: string, type: 'success' | 'error' } | null>(null);
+    // Nota: El estado 'message' local ha sido reemplazado por Toasts globales para mejorar la UI.
 
     // Carga inicial de datos maestros
     useEffect(() => {
@@ -35,12 +37,18 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
                 setOficinas(oficinasData);
                 setSistemas(sistemasData);
 
-                // -- MODO CREACIÓN --
-                // Si NO estamos editando, auto-seleccionar primera oficina e inicializar checks
+                // -- MODO CREACIÓN o PRE-LLENADO --
                 if (!solicitudEdit) {
-                    if (oficinasData.length > 0) {
+                    if (initialUser) {
+                        // Pre-llenar con datos del usuario inactivo
+                        setNombre(initialUser.nombre);
+                        setDni(initialUser.documento || '');
+                        setCargo(initialUser.cargo || '');
+                        setOficinaId(initialUser.oficinaId || (oficinasData.length > 0 ? oficinasData[0].id : ''));
+                    } else if (oficinasData.length > 0) {
                         setOficinaId(oficinasData[0].id);
                     }
+
                     const initialSelection: Record<string, { selected: boolean; detalle: string }> = {};
                     sistemasData.forEach(s => {
                         initialSelection[s.id] = { selected: false, detalle: '' };
@@ -77,7 +85,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
 
             } catch (error) {
                 console.error('Error cargando datos:', error);
-                setMessage({ getText: 'Error cargando datos maestros.', type: 'error' });
+                toast.error('Error cargando datos maestros.');
             }
         };
         loadData();
@@ -101,12 +109,10 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setMessage(null);
-
         const sistemasSeleccionadosIds = Object.keys(seleccionSistemas).filter(id => seleccionSistemas[id].selected);
 
         if (sistemasSeleccionadosIds.length === 0) {
-            setMessage({ getText: 'Debe seleccionar al menos un sistema.', type: 'error' });
+            toast.error('Debe seleccionar al menos un sistema.');
             setLoading(false);
             return;
         }
@@ -134,7 +140,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
                     estado: 'PENDIENTE_ALTA' as any, // Al corregir, vuelve a pendiente para que ETIC la vea
                     sistemas: sistemasPayload as any // El mock maneja generación de IDs
                 });
-                setMessage({ getText: 'Solicitud actualizada correctamente.', type: 'success' });
+                toast.success('Solicitud actualizada correctamente.');
             } else {
                 // --- CREATE ---
                 await api.createSolicitudAlta({
@@ -147,7 +153,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
                     creadoPorId: currentUser.id,
                     sistemas: sistemasPayload
                 });
-                setMessage({ getText: 'Solicitud creada con éxito!', type: 'success' });
+                toast.success('Solicitud creada con éxito!');
 
                 // Limpiar form solo si es creación
                 setNombre('');
@@ -168,7 +174,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
 
         } catch (error) {
             console.error(error);
-            setMessage({ getText: 'Error al procesar la solicitud.', type: 'error' });
+            toast.error('Error al procesar la solicitud.');
         } finally {
             setLoading(false);
         }
@@ -187,11 +193,6 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, onSucce
                 )}
             </div>
 
-            {message && (
-                <div className={`mb-6 p-4 rounded-lg flex items-center ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                    {message.getText}
-                </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

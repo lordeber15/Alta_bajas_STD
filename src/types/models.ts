@@ -23,11 +23,16 @@ export type TipoSolicitud = 'ALTA' | 'BAJA';
 
 // Modelo de Usuario
 export interface Usuario {
-    id: string;
+    id: string; // id_persona
+    id_usuario?: number; // id_usuario de la tabla tbl_usuario
     nombre: string;
-    correo: string;
+    documento?: string; // documento de tbl_persona
+    cargo?: string; // cargo de tbl_persona
+    correo?: string;
     rol: RolUsuario;
     estado: 'ACTIVO' | 'INACTIVO';
+    id_estado?: number; // 8: Activo, 9: Inactivo
+    areaName?: string; // Nombre del área desde tbl_area
     oficinaId?: string; // Opcional, solo si el usuario pertenece a una oficina específica
     sistemas: string[]; // IDs de sistemas activos para este usuario
 }

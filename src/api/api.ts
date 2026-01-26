@@ -17,8 +17,9 @@ import * as mockBackend from './mockBackend';
  * de un mock local o del servidor real.
  */
 
-// !IMPORTANTE: Cambiar a false cuando el backend PHP esté listo y conectado
-export const USE_MOCK = true;
+// !IMPORTANTE: Cambiar a false cuando el backend Node.js esté listo y conectado
+export const USE_MOCK = false;
+const BACKEND_URL = 'http://localhost:3001/api';
 
 /**
  * Interfaces para funciones API
@@ -28,98 +29,105 @@ type CreateSolicitudPayload = mockBackend.CreateSolicitudPayload;
 
 
 /**
- * IMPLEMENTACIONES REALES (Placeholders)
- * Aquí irían los fetch() reales a tu API PHP
+ * IMPLEMENTACIONES REALES
+ * Conecta con el servidor Node.js + Sequelize
  */
 const realApi = {
     getCurrentUser: async (): Promise<Usuario> => {
-        // Ejemplo:
-        // const res = await fetch('/api/auth/me');
-        // if (!res.ok) throw new Error('Error al obtener usuario');
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+        // En un escenario real, esto vendría de un token de sesión
+        return mockBackend.getCurrentUser();
     },
 
+    /**
+     * Obtiene las áreas reales de la base de datos.
+     */
     getOficinas: async (): Promise<Oficina[]> => {
-        // const res = await fetch('/api/oficinas');
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+        const res = await fetch(`${BACKEND_URL}/areas`);
+        if (!res.ok) throw new Error('Error al obtener áreas');
+        const data = await res.json();
+        return data.map((a: any) => ({
+            id: a.id_area.toString(),
+            nombre: a.area
+        }));
     },
 
     getSistemasAlta: async (): Promise<Sistema[]> => {
-        // const res = await fetch('/api/sistemas?tipo=ALTA&estado=ACTIVO');
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+        return mockBackend.getSistemasAlta();
     },
 
-    createSolicitudAlta: async (_payload: CreateSolicitudPayload): Promise<SolicitudConSistemas> => {
-        // const res = await fetch('/api/solicitudes', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify(payload)
-        // });
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+    createSolicitudAlta: async (payload: CreateSolicitudPayload): Promise<SolicitudConSistemas> => {
+        return mockBackend.createSolicitudAlta(payload);
     },
 
     getSolicitudesPendientesAlta: async (): Promise<SolicitudConSistemas[]> => {
-        // const res = await fetch('/api/solicitudes?tipo=ALTA&estado=PENDIENTE');
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+        return mockBackend.getSolicitudesPendientesAlta();
     },
 
-    cambiarEstadoSolicitud: async (_id: string, _nuevoEstado: EstadoSolicitud): Promise<SolicitudConSistemas> => {
-        // const res = await fetch(`/api/solicitudes/${id}/estado`, {
-        //   method: 'PUT', // o PATCH
-        //   body: JSON.stringify({ estado: nuevoEstado })
-        // });
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+    cambiarEstadoSolicitud: async (id: string, nuevoEstado: EstadoSolicitud): Promise<SolicitudConSistemas> => {
+        return mockBackend.cambiarEstadoSolicitud(id, nuevoEstado);
     },
 
-    marcarSistemaCompletado: async (_solicitudId: string, _sistemaId: string): Promise<SolicitudConSistemas> => {
-        // const res = await fetch(`/api/solicitudes/${solicitudId}/sistemas/${sistemaId}/completar`, {
-        //   method: 'PUT'
-        // });
-        // return res.json();
-        throw new Error('Real backend implementation not ready');
+    marcarSistemaCompletado: async (solicitudId: string, sistemaId: string): Promise<SolicitudConSistemas> => {
+        return mockBackend.marcarSistemaCompletado(solicitudId, sistemaId);
     },
 
-    getMisSolicitudes: async (_userId: string): Promise<SolicitudConSistemas[]> => {
-        throw new Error('Real backend implementation not ready');
+    getMisSolicitudes: async (userId: string): Promise<SolicitudConSistemas[]> => {
+        return mockBackend.getMisSolicitudes(userId);
     },
 
-    getSolicitudById: async (_id: string): Promise<SolicitudConSistemas | undefined> => {
-        throw new Error('Real backend implementation not ready');
+    getSolicitudById: async (id: string): Promise<SolicitudConSistemas | undefined> => {
+        return mockBackend.getSolicitudById(id);
     },
 
-    updateSolicitud: async (_id: string, _payload: mockBackend.UpdateSolicitudPayload): Promise<SolicitudConSistemas> => {
-        throw new Error('Real backend implementation not ready');
+    updateSolicitud: async (id: string, payload: mockBackend.UpdateSolicitudPayload): Promise<SolicitudConSistemas> => {
+        return mockBackend.updateSolicitud(id, payload);
     },
 
     getSolicitudesParaValidar: async (): Promise<SolicitudConSistemas[]> => {
-        throw new Error('Real backend implementation not ready');
+        return mockBackend.getSolicitudesParaValidar();
     },
 
+    /**
+     * Obtiene el personal desde la base de datos real a través de la API Node.js.
+     * Ahora retorna solo Usuarios con sus datos vinculados de Persona y Área.
+     */
     getPersonal: async (): Promise<Usuario[]> => {
-        throw new Error('Real backend implementation not ready');
+        const res = await fetch(`${BACKEND_URL}/personal`);
+        if (!res.ok) throw new Error('Error al obtener personal de la DB');
+        const data = await res.json();
+
+        // Mapear el formato de la DB (tbl_usuario join tbl_persona join tbl_area)
+        return data.map((u: any) => ({
+            id: u.tbl_persona?.id_persona?.toString() || '0',
+            id_usuario: u.id_usuario,
+            nombre: u.tbl_persona?.nombre || 'Sin nombre',
+            documento: u.tbl_persona?.documento,
+            cargo: u.tbl_persona?.cargo,
+            correo: u.usuario || 'Sin correo',
+            rol: u.id_rol === 1 ? 'OGA' : (u.id_rol === 2 ? 'ETIC' : 'JEFE_ETIC'),
+            estado: u.id_estado === 8 ? 'ACTIVO' : 'INACTIVO',
+            id_estado: u.id_estado,
+            areaName: u.tbl_area?.area || 'Sin área',
+            oficinaId: u.id_area?.toString(),
+            sistemas: [] // Se cargará dinámicamente si es necesario
+        }));
     },
 
-    aprobarSolicitud: async (_id: string): Promise<SolicitudConSistemas> => {
-        throw new Error('Real backend implementation not ready');
+    aprobarSolicitud: async (id: string): Promise<SolicitudConSistemas> => {
+        return mockBackend.aprobarSolicitud(id);
     },
 
-    rechazarSolicitud: async (_id: string, _motivo: string): Promise<SolicitudConSistemas> => {
-        throw new Error('Real backend implementation not ready');
+    rechazarSolicitud: async (id: string, motivo: string): Promise<SolicitudConSistemas> => {
+        return mockBackend.rechazarSolicitud(id, motivo);
     },
 
     // Bajas
-    createSolicitudBaja: async (_userId: string, _sistemasIds: string[]): Promise<SolicitudConSistemas> => {
-        throw new Error('Real backend implementation not ready');
+    createSolicitudBaja: async (userId: string, sistemasIds: string[]): Promise<SolicitudConSistemas> => {
+        return mockBackend.createSolicitudBaja(userId, sistemasIds);
     },
 
     getSolicitudesPendientesBaja: async (): Promise<SolicitudConSistemas[]> => {
-        throw new Error('Real backend implementation not ready');
+        return mockBackend.getSolicitudesPendientesBaja();
     }
 };
 
@@ -151,3 +159,4 @@ export const api = {
     createSolicitudBaja: USE_MOCK ? mockBackend.createSolicitudBaja : realApi.createSolicitudBaja,
     getSolicitudesPendientesBaja: USE_MOCK ? mockBackend.getSolicitudesPendientesBaja : realApi.getSolicitudesPendientesBaja,
 };
+

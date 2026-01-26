@@ -4,18 +4,24 @@ import { OgaAltaForm } from './OgaAltaForm';
 import { PersonalDirectory } from '../components/PersonalDirectory';
 import { api } from '../api/api';
 import type { SolicitudConSistemas, Usuario, Sistema } from '../types/models';
+import { toast } from 'sonner';
 
 export const OgaDashboard: React.FC = () => {
     const [view, setView] = useState<'LIST' | 'CREATE' | 'EDIT' | 'DIRECTORY'>('LIST');
     const [misSolicitudes, setMisSolicitudes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
     const [solicitudToEdit, setSolicitudToEdit] = useState<SolicitudConSistemas | undefined>(undefined);
+    const [userForAlta, setUserForAlta] = useState<Usuario | undefined>(undefined);
 
     // Baja Modal State
     const [showBajaModal, setShowBajaModal] = useState(false);
     const [userToBaja, setUserToBaja] = useState<Usuario | null>(null);
     const [userSystems, setUserSystems] = useState<Sistema[]>([]);
 
+    /**
+     * Carga las solicitudes del usuario actual desde la API.
+     * Señalización para API Real: Reemplazar api.getMisSolicitudes con un endpoint real.
+     */
     const loadSolicitudes = async () => {
         setLoading(true);
         try {
@@ -25,6 +31,7 @@ export const OgaDashboard: React.FC = () => {
             setMisSolicitudes(data.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
         } catch (error) {
             console.error('Error cargando solicitudes:', error);
+            toast.error('Error cargando solicitudes del servidor.');
         } finally {
             setLoading(false);
         }
@@ -36,28 +43,48 @@ export const OgaDashboard: React.FC = () => {
         }
     }, [view]);
 
+    /**
+     * Maneja el inicio de la edición de una solicitud.
+     * Solo permite editar si el estado es pendiente o ha sido observado.
+     */
     const handleEdit = (solicitud: SolicitudConSistemas) => {
         // Solo permitir editar si está pendiente u observada
         if (solicitud.estado === 'PENDIENTE_ALTA' || solicitud.estado === 'PENDIENTE_BAJA' || solicitud.estado === 'OBSERVADO') {
             if (solicitud.estado === 'OBSERVADO' && solicitud.motivo) {
-                alert(`Atención, solicitud observada por: ${solicitud.motivo}`);
+                toast.info(`Atención, solicitud observada por: ${solicitud.motivo}`, {
+                    duration: 5000,
+                });
             }
             setSolicitudToEdit(solicitud);
             setView('EDIT');
         } else {
-            alert('Solo se pueden editar solicitudes pendientes u observadas.');
+            toast.error('Solo se pueden editar solicitudes pendientes u observadas.');
         }
     };
 
     const handleSuccess = () => {
         setView('LIST');
         setSolicitudToEdit(undefined);
+        setUserForAlta(undefined);
+    };
+
+    /**
+     * Inicia el proceso de generación de alta para un usuario inactivo.
+     */
+    const handleGenerarAlta = (user: Usuario) => {
+        setUserForAlta(user);
+        setSolicitudToEdit(undefined);
+        setView('CREATE');
     };
 
     // Baja Logic
+    /**
+     * Inicia el proceso de baja para un usuario seleccionado del directorio.
+     * Carga los sistemas que el usuario tiene actualmente asignados.
+     */
     const handleInitiateBaja = async (user: Usuario) => {
         if (!user.sistemas || user.sistemas.length === 0) {
-            alert('Este usuario no tiene sistemas asignados para dar de baja.');
+            toast.info('Este usuario no tiene sistemas asignados para dar de baja.');
             // For testing purposes, we might want to allow it or show a mock list
             // return; 
         }
@@ -73,23 +100,27 @@ export const OgaDashboard: React.FC = () => {
             setShowBajaModal(true);
         } catch (e) {
             console.error(e);
-            alert('Error cargando sistemas del usuario');
+            toast.error('Error cargando sistemas del usuario');
         }
     };
 
+    /**
+     * Confirma la creación de una solicitud de baja.
+     * Señalización para API Real: Cambiar api.createSolicitudBaja por el endpoint de producción.
+     */
     const confirmBaja = async () => {
         if (!userToBaja) return;
 
         try {
             const sistemasIds = userSystems.map(s => s.id);
             await api.createSolicitudBaja(userToBaja.id, sistemasIds); // Assuming basic logic: remove all currently assigned
-            alert('Solicitud de Baja creada exitosamente');
+            toast.success('Solicitud de Baja creada exitosamente');
             setShowBajaModal(false);
             setUserToBaja(null);
             setView('LIST'); // Go to list to see the new request
         } catch (e) {
             console.error(e);
-            alert('Error al crear solicitud de baja');
+            toast.error('Error al crear solicitud de baja');
         }
     };
 
@@ -194,6 +225,7 @@ export const OgaDashboard: React.FC = () => {
                     <PersonalDirectory
                         actionLabel="Dar de Baja"
                         onAction={handleInitiateBaja}
+                        onGenerarAlta={handleGenerarAlta}
                     />
                 </div>
             )}
@@ -202,8 +234,9 @@ export const OgaDashboard: React.FC = () => {
                 <div className="animate-slideUp">
                     <OgaAltaForm
                         solicitudEdit={solicitudToEdit}
+                        initialUser={userForAlta}
                         onSuccess={handleSuccess}
-                        onCancel={() => setView('LIST')}
+                        onCancel={() => { setView('LIST'); setUserForAlta(undefined); }}
                     />
                 </div>
             )}
