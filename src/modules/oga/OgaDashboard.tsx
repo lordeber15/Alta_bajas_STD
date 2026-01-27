@@ -226,6 +226,7 @@ export const OgaDashboard: React.FC = () => {
                         actionLabel="Dar de Baja"
                         onAction={handleInitiateBaja}
                         onGenerarAlta={handleGenerarAlta}
+                        onModificar={handleGenerarAlta}
                     />
                 </div>
             )}

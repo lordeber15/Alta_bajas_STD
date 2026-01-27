@@ -239,7 +239,13 @@ const realApi = {
     },
 
     updateSolicitud: async (id: string, payload: any): Promise<any> => {
-        return mockBackend.updateSolicitud(id, payload);
+        const res = await fetch(`${BACKEND_URL}/solicitudes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('Error al actualizar solicitud');
+        return res.json();
     },
 
     getSolicitudesParaValidar: async (): Promise<SolicitudConSistemas[]> => {
@@ -254,6 +260,30 @@ const realApi = {
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
             estado: s.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA',
+            creadoPorId: s.id_creado_por.toString(),
+            documentoSustento: s.archivo_sustento,
+            sistemas: s.tbl_solicitud_sistemas?.map((ss: any) => ({
+                id: ss.id_solicitud_sistema.toString(),
+                sistemaId: ss.id_sistema.toString(),
+                sistemaNombre: ss.tbl_sistema?.nombre || 'S/N',
+                detalle: ss.detalle,
+                estadoAtencion: ss.estado_atencion
+            })) || []
+        }));
+    },
+
+    getSolicitudesValidadas: async (): Promise<SolicitudConSistemas[]> => {
+        const res = await fetch(`${BACKEND_URL}/solicitudes`);
+        if (!res.ok) throw new Error('Error al obtener solicitudes');
+        const data = await res.json();
+        return data.filter((s: any) => [4].includes(s.id_estado_solicitud)).map((s: any) => ({
+            id: s.id_solicitud.toString(),
+            tipo: s.tipo,
+            usuarioObjetivoNombre: s.usuario_objetivo_nombre,
+            usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
+            cargo: s.cargo,
+            oficinaId: s.id_area.toString(),
+            estado: s.tipo === 'ALTA' ? 'COMPLETADO_ALTA' : 'COMPLETADO_BAJA',
             creadoPorId: s.id_creado_por.toString(),
             documentoSustento: s.archivo_sustento,
             sistemas: s.tbl_solicitud_sistemas?.map((ss: any) => ({
@@ -420,6 +450,7 @@ export const api = {
 
     // Jefatura & Validacion
     getSolicitudesParaValidar: USE_MOCK ? mockBackend.getSolicitudesParaValidar : realApi.getSolicitudesParaValidar,
+    getSolicitudesValidadas: USE_MOCK ? (async () => []) : realApi.getSolicitudesValidadas,
     getPersonal: USE_MOCK ? mockBackend.getPersonal : realApi.getPersonal,
     aprobarSolicitud: USE_MOCK ? mockBackend.aprobarSolicitud : realApi.aprobarSolicitud,
     rechazarSolicitud: USE_MOCK ? mockBackend.rechazarSolicitud : realApi.rechazarSolicitud,

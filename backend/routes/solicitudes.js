@@ -135,4 +135,42 @@ router.put('/:id/sistemas/:sistemaId', async (req, res) => {
     }
 });
 
+/**
+ * Aprobar solicitud (Jefatura)
+ */
+router.post('/:id/aprobar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const solicitud = await Solicitud.findByPk(id);
+        if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+        await solicitud.update({ id_estado_solicitud: 4 }); // 4: Completado
+        res.json({ message: 'Solicitud aprobada', solicitud });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al aprobar solicitud' });
+    }
+});
+
+/**
+ * Rechazar/Observar solicitud (Jefatura o ETIC)
+ */
+router.post('/:id/rechazar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+        const solicitud = await Solicitud.findByPk(id);
+        if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+        await solicitud.update({
+            id_estado_solicitud: 5, // 5: Observado
+            motivo_observacion: motivo || 'Observado por Jefatura'
+        });
+        res.json({ message: 'Solicitud rechazada', solicitud });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al rechazar solicitud' });
+    }
+});
+
 module.exports = router;

@@ -9,6 +9,7 @@ interface PersonalDirectoryProps {
     actionLabel?: string;
     onAction?: (user: Usuario) => void;
     onGenerarAlta?: (user: Usuario) => void;
+    onModificar?: (user: Usuario) => void;
     showExport?: boolean;
 }
 
@@ -22,6 +23,7 @@ export const PersonalDirectory: React.FC<PersonalDirectoryProps> = ({
     actionLabel,
     onAction,
     onGenerarAlta,
+    onModificar,
     showExport = false
 }) => {
     const [personal, setPersonal] = useState<Usuario[]>([]);
@@ -242,12 +244,20 @@ export const PersonalDirectory: React.FC<PersonalDirectoryProps> = ({
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {renderAction ? renderAction(user) : (
                                                 isActive ? (
-                                                    <button
-                                                        onClick={() => onAction?.(user)}
-                                                        className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg font-bold transition-all border border-red-100"
-                                                    >
-                                                        {actionLabel || 'Dar de Baja'}
-                                                    </button>
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button
+                                                            onClick={() => onModificar?.(user)}
+                                                            className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold transition-all border border-blue-100 text-xs"
+                                                        >
+                                                            Modificar Sistemas
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onAction?.(user)}
+                                                            className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg font-bold transition-all border border-red-100 text-xs"
+                                                        >
+                                                            {actionLabel || 'Dar de Baja'}
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <button
                                                         onClick={() => onGenerarAlta?.(user)}

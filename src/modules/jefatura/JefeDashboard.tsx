@@ -3,9 +3,10 @@ import { JefeValidationList } from './JefeValidationList';
 import { PersonalList } from '../shared/components/PersonalList';
 import { JefeResumen } from './JefeResumen';
 import { JefeSistemas } from './JefeSistemas';
+import { JefeValidadosList } from './JefeValidadosList';
 
 export const JefeDashboard: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'RESUMEN' | 'VALIDACION' | 'PERSONAL' | 'SISTEMAS'>('RESUMEN');
+    const [activeTab, setActiveTab] = useState<'RESUMEN' | 'VALIDACION' | 'VALIDADOS' | 'PERSONAL' | 'SISTEMAS'>('RESUMEN');
 
     return (
         <div className="max-w-5xl mx-auto px-4 py-8 animate-fadeIn">
@@ -33,6 +34,15 @@ export const JefeDashboard: React.FC = () => {
                     Validaciones Pendientes
                 </button>
                 <button
+                    onClick={() => setActiveTab('VALIDADOS')}
+                    className={`pb-4 px-6 font-bold text-sm transition-colors relative whitespace-nowrap ${activeTab === 'VALIDADOS'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Historial / Validados
+                </button>
+                <button
                     onClick={() => setActiveTab('PERSONAL')}
                     className={`pb-4 px-6 font-bold text-sm transition-colors relative whitespace-nowrap ${activeTab === 'PERSONAL'
                         ? 'text-blue-600 border-b-2 border-blue-600'
@@ -56,6 +66,7 @@ export const JefeDashboard: React.FC = () => {
             <div className="animate-slideUp">
                 {activeTab === 'RESUMEN' && <JefeResumen />}
                 {activeTab === 'VALIDACION' && <JefeValidationList />}
+                {activeTab === 'VALIDADOS' && <JefeValidadosList />}
                 {activeTab === 'PERSONAL' && <PersonalList />}
                 {activeTab === 'SISTEMAS' && <JefeSistemas />}
             </div>
