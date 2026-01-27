@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { SolicitudCard } from '../components/SolicitudCard';
+import { SolicitudCard } from '../shared/components/SolicitudCard';
 import { OgaAltaForm } from './OgaAltaForm';
-import { PersonalDirectory } from '../components/PersonalDirectory';
-import { api } from '../api/api';
-import type { SolicitudConSistemas, Usuario, Sistema } from '../types/models';
+import { PersonalDirectory } from '../shared/components/PersonalDirectory';
+import { api } from '../shared/api/api';
+import type { SolicitudConSistemas, Usuario, Sistema } from '../shared/types/models';
 import { toast } from 'sonner';
 
 export const OgaDashboard: React.FC = () => {
@@ -28,7 +28,7 @@ export const OgaDashboard: React.FC = () => {
             const user = await api.getCurrentUser();
             const data = await api.getMisSolicitudes(user.id);
             // Ordenar por fecha desc
-            setMisSolicitudes(data.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
+            setMisSolicitudes(data.sort((a: SolicitudConSistemas, b: SolicitudConSistemas) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
         } catch (error) {
             console.error('Error cargando solicitudes:', error);
             toast.error('Error cargando solicitudes del servidor.');
@@ -95,7 +95,7 @@ export const OgaDashboard: React.FC = () => {
         try {
             const allSystems = await api.getSistemasAlta(); // Reusing Alta API as it returns all systems
             // Filter systems the user has
-            const systemsDetails = allSystems.filter(s => user.sistemas?.includes(s.id));
+            const systemsDetails = allSystems.filter((s: Sistema) => user.sistemas?.includes(s.id));
             setUserSystems(systemsDetails);
             setShowBajaModal(true);
         } catch (e) {
@@ -129,8 +129,8 @@ export const OgaDashboard: React.FC = () => {
             {/* Header del Dashboard */}
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Portal Gestión Administrativa</h1>
-                    <p className="text-gray-500 mt-1">Gestione las altas y bajas de personal</p>
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Gestión de Usuarios</h1>
+                    <p className="text-gray-500 mt-1">Gestione las altas y bajas</p>
                 </div>
 
                 <div className="flex gap-3">
@@ -200,7 +200,7 @@ export const OgaDashboard: React.FC = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {misSolicitudes.map(sol => (
+                                {misSolicitudes.map((sol: SolicitudConSistemas) => (
                                     <SolicitudCard
                                         key={sol.id}
                                         solicitud={sol}

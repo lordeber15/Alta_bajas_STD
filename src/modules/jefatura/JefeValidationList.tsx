@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import type { SolicitudConSistemas } from '../types/models';
-import { ProgressBar } from '../components/ProgressBar';
+import { api } from '../shared/api/api';
+import type { SolicitudConSistemas } from '../shared/types/models';
+import { ProgressBar } from '../shared/components/ProgressBar';
 import { toast } from 'sonner';
 
 /**
@@ -76,7 +76,7 @@ export const JefeValidationList: React.FC = () => {
         if (!sol.sistemas || sol.sistemas.length === 0) {
             return 0;
         }
-        const completados = sol.sistemas.filter(s => s.estadoAtencion === 'COMPLETADO').length;
+        const completados = sol.sistemas.filter((s: any) => s.estadoAtencion === 'COMPLETADO').length;
         return (completados / sol.sistemas.length) * 100;
     };
 

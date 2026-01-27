@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import type { Usuario, SolicitudConSistemas } from '../types/models';
+import { api } from '../shared/api/api';
+import type { Usuario, SolicitudConSistemas } from '../shared/types/models';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend
@@ -40,7 +40,15 @@ export const JefeResumen: React.FC = () => {
     // --- Cálculo de KPIs ---
     const totalActivos = personal.filter(u => u.id_estado === 8).length;
     const totalInactivos = personal.filter(u => u.id_estado === 9).length;
+
+    // Validaciones: Altas vs Bajas
+    const valAltas = solicitudesVal.filter(s => s.tipo === 'ALTA').length;
+    const valBajas = solicitudesVal.filter(s => s.tipo === 'BAJA').length;
     const penValidacion = solicitudesVal.length;
+
+    // Bajas: Pendientes vs En Proceso
+    const bajasPendientesInit = solicitudesBaja.filter(s => s.estado === 'PENDIENTE_BAJA').length;
+    const bajasEnProceso = solicitudesBaja.filter(s => s.estado === 'EN_PROCESO_BAJA').length;
     const penBaja = solicitudesBaja.length;
 
     // --- Datos para Gráfico de Distribución por Área ---
@@ -81,6 +89,10 @@ export const JefeResumen: React.FC = () => {
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Por Validar (Jefe)</p>
                         <h3 className="text-2xl font-black text-gray-900">{penValidacion}</h3>
+                        <div className="flex gap-2 mt-1">
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-bold">A: {valAltas}</span>
+                            <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-md font-bold">B: {valBajas}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -91,6 +103,10 @@ export const JefeResumen: React.FC = () => {
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bajas Pendientes</p>
                         <h3 className="text-2xl font-black text-gray-900">{penBaja}</h3>
+                        <div className="flex gap-2 mt-1">
+                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md font-bold">P: {bajasPendientesInit}</span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold">EP: {bajasEnProceso}</span>
+                        </div>
                     </div>
                 </div>
 

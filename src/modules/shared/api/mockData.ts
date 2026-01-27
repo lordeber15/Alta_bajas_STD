@@ -10,27 +10,33 @@ import type { Usuario, Oficina, Sistema, SolicitudConSistemas } from '../types/m
 export const mockUsuarios: Usuario[] = [
     {
         id: 'u1',
+        id_usuario: 1,
         nombre: 'Juan Pérez (OGA)',
         correo: 'juan.oga@empresa.com',
         rol: 'OGA',
         estado: 'ACTIVO',
         oficinaId: 'o1',
+        sistemas: []
     },
     {
         id: 'u2',
+        id_usuario: 2,
         nombre: 'Maria Gomez (ETIC)',
         correo: 'maria.etic@empresa.com',
         rol: 'ETIC',
         estado: 'ACTIVO',
         oficinaId: 'o2',
+        sistemas: []
     },
     {
         id: 'u3',
+        id_usuario: 3,
         nombre: 'Carlos Jefe (JEFE_ETIC)',
         correo: 'carlos.jefe@empresa.com',
         rol: 'JEFE_ETIC',
         estado: 'ACTIVO',
         oficinaId: 'o2',
+        sistemas: []
     },
 ];
 

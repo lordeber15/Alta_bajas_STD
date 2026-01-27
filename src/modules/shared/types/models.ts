@@ -24,7 +24,7 @@ export type TipoSolicitud = 'ALTA' | 'BAJA';
 // Modelo de Usuario
 export interface Usuario {
     id: string; // id_persona
-    id_usuario?: number; // id_usuario de la tabla tbl_usuario
+    id_usuario: number; // id_usuario de la tabla tbl_usuario
     nombre: string;
     documento?: string; // documento de tbl_persona
     cargo?: string; // cargo de tbl_persona

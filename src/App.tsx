@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { OgaDashboard } from './pages/OgaDashboard';
-import { EticPendientesList } from './pages/EticPendientesList';
-import { JefeDashboard } from './pages/JefeDashboard';
+import { OgaDashboard } from './modules/oga/OgaDashboard';
+import { UseiDashboard } from './modules/usei/UseiDashboard';
+import { JefeDashboard } from './modules/jefatura/JefeDashboard';
 
 /**
  * Componente principal de la aplicación.
@@ -22,14 +22,8 @@ function App() {
             {/* Ruta para el Portal de Gestión Administrativa (OGA) */}
             <Route path="/oga" element={<OgaDashboard />} />
 
-            {/* Ruta para el Personal Técnico (ETIC) */}
-            <Route path="/etic" element={
-              <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="animate-fadeIn">
-                  <EticPendientesList />
-                </div>
-              </div>
-            } />
+            {/* Ruta para el Personal Técnico (ETIC / USEI) */}
+            <Route path="/usei" element={<UseiDashboard />} />
 
             {/* Ruta para Jefatura / Validadores */}
             <Route path="/jefatura" element={

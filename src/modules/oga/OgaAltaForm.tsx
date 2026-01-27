@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import type { Oficina, Sistema, SolicitudConSistemas, Usuario } from '../types/models';
+import { api } from '../shared/api/api';
+import type { Oficina, Sistema, SolicitudConSistemas, Usuario } from '../shared/types/models';
 import { toast } from 'sonner';
 
 interface OgaAltaFormProps {
@@ -22,6 +22,8 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
 
     // Estado para selección: record de ID -> { selected, detalle }
     const [seleccionSistemas, setSeleccionSistemas] = useState<Record<string, { selected: boolean; detalle: string }>>({});
+
+    const [archivoSustento, setArchivoSustento] = useState<File | null>(null);
 
     const [loading, setLoading] = useState(false);
     // Nota: El estado 'message' local ha sido reemplazado por Toasts globales para mejorar la UI.
@@ -120,45 +122,30 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
         try {
             const currentUser = await api.getCurrentUser();
 
-            // Mapeamos al formato de API
-            const sistemasPayload = sistemasSeleccionadosIds.map(sisId => ({
-                sistemaId: sisId,
-                requerido: true,
-                estadoAtencion: 'PENDIENTE' as const, // Forzamos tipo literal
-                detalle: seleccionSistemas[sisId].detalle || undefined,
-                // Al editar, si el sistema ya existía, deberíamos idealmente mantener su ID, 
-                // pero por simplicidad del mock update, lo regenerará o se manejará en backend
-            }));
+            const payload = {
+                usuarioObjetivoNombre: nombre,
+                usuarioObjetivoDniRuc: dni,
+                cargo: cargo,
+                oficinaId: parseInt(oficinaId),
+                creadoPorId: currentUser.id,
+                sistemas: sistemasSeleccionadosIds.map(sisId => ({
+                    sistemaId: sisId,
+                    detalle: seleccionSistemas[sisId].detalle || undefined
+                }))
+            };
 
             if (solicitudEdit) {
-                // --- UPDATE ---
-                await api.updateSolicitud(solicitudEdit.id, {
-                    usuarioObjetivoNombre: nombre,
-                    usuarioObjetivoDniRuc: dni,
-                    cargo: cargo,
-                    oficinaId: oficinaId,
-                    estado: 'PENDIENTE_ALTA' as any, // Al corregir, vuelve a pendiente para que ETIC la vea
-                    sistemas: sistemasPayload as any // El mock maneja generación de IDs
-                });
+                await api.updateSolicitud(solicitudEdit.id, payload);
                 toast.success('Solicitud actualizada correctamente.');
             } else {
-                // --- CREATE ---
-                await api.createSolicitudAlta({
-                    tipo: 'ALTA',
-                    usuarioObjetivoNombre: nombre,
-                    usuarioObjetivoDniRuc: dni,
-                    cargo: cargo,
-                    oficinaId: oficinaId,
-                    estado: 'PENDIENTE_ALTA' as any,
-                    creadoPorId: currentUser.id,
-                    sistemas: sistemasPayload
-                });
+                await api.createSolicitudAlta(payload, archivoSustento || undefined);
                 toast.success('Solicitud creada con éxito!');
 
                 // Limpiar form solo si es creación
                 setNombre('');
                 setDni('');
                 setCargo('');
+                setArchivoSustento(null);
                 if (oficinas.length > 0) setOficinaId(oficinas[0].id);
                 setSeleccionSistemas(prev => {
                     const reset = { ...prev };
@@ -253,6 +240,32 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Documento de Sustento (Opcional)</label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex-1 flex flex-col items-center justify-center px-4 py-3 bg-white text-blue-600 rounded-lg shadow-sm tracking-wide border border-blue-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <span className="mt-1 text-sm">{archivoSustento ? archivoSustento.name : 'Seleccionar archivo (PDF, Imagen)'}</span>
+                            <input
+                                type='file'
+                                className="hidden"
+                                onChange={e => setArchivoSustento(e.target.files?.[0] || null)}
+                                accept=".pdf,image/*"
+                            />
+                        </label>
+                        {archivoSustento && (
+                            <button
+                                type="button"
+                                onClick={() => setArchivoSustento(null)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-[11px] text-gray-400 italic">Formatos permitidos: PDF, JPG, PNG. Tamaño máx: 5MB.</p>
                 </div>
 
                 <div className="border-t border-gray-100 pt-6">

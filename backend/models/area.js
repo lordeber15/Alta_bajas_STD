@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const Area = sequelize.define('tbl_area', {
     id_area: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         primaryKey: true,
         autoIncrement: true
     },
@@ -11,6 +11,9 @@ const Area = sequelize.define('tbl_area', {
         type: DataTypes.STRING,
         allowNull: false
     }
+}, {
+    tableName: 'tbl_area',
+    timestamps: false
 });
 
 module.exports = Area;

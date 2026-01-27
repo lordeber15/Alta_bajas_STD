@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const Persona = sequelize.define('tbl_persona', {
     id_persona: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         primaryKey: true,
         autoIncrement: true
     },
@@ -19,6 +19,9 @@ const Persona = sequelize.define('tbl_persona', {
         type: DataTypes.STRING,
         allowNull: false
     }
+}, {
+    tableName: 'tbl_persona',
+    timestamps: false
 });
 
 module.exports = Persona;

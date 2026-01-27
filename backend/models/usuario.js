@@ -5,7 +5,7 @@ const Area = require('./area');
 
 const Usuario = sequelize.define('tbl_usuario', {
     id_usuario: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         primaryKey: true,
         autoIncrement: true
     },
@@ -14,18 +14,18 @@ const Usuario = sequelize.define('tbl_usuario', {
         allowNull: false
     },
     id_persona: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
-            model: Persona,
+            model: 'tbl_persona',
             key: 'id_persona'
         }
     },
     id_area: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
-            model: Area,
+            model: 'tbl_area',
             key: 'id_area'
         }
     },
@@ -38,6 +38,9 @@ const Usuario = sequelize.define('tbl_usuario', {
         allowNull: false,
         defaultValue: 8 // 8: Activo, 9: Inactivo
     }
+}, {
+    tableName: 'tbl_usuario',
+    timestamps: false
 });
 
 // Relaciones

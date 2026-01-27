@@ -1,38 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const Persona = require('../models/persona');
 const Usuario = require('../models/usuario');
+const Persona = require('../models/persona');
 const Area = require('../models/area');
-const { Op } = require('sequelize');
+const UsuarioSistema = require('../models/usuarioSistema');
+const Sistema = require('../models/sistema');
 
 /**
- * Obtener todos los usuarios (Directorio de Personal)
- * Excluye registros marcados como 'N/D' y vincula Persona y Área.
+ * Obtener todo el personal con su información de usuario y sistemas
  */
 router.get('/', async (req, res) => {
     try {
-        const usuarios = await Usuario.findAll({
+        const list = await Usuario.findAll({
             include: [
+                { model: Persona },
+                { model: Area },
                 {
-                    model: Persona,
-                    required: true,
-                    where: {
-                        nombre: { [Op.ne]: 'N/D' }
-                    }
-                },
-                {
-                    model: Area,
-                    required: true,
-                    where: {
-                        area: { [Op.ne]: 'N/D' }
-                    }
+                    model: UsuarioSistema,
+                    where: { id_estado_acceso: 1 },
+                    required: false,
+                    include: [Sistema]
                 }
             ]
         });
-        res.json(usuarios);
+        res.json(list);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Error al obtener el directorio de usuarios' });
+        res.status(500).json({ error: 'Error al obtener personal' });
     }
 });
 

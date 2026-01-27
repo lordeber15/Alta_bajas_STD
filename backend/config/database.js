@@ -11,7 +11,9 @@ const sequelize = new Sequelize(
         logging: false,
         define: {
             timestamps: false,
-            freezeTableName: true
+            freezeTableName: true,
+            charset: 'utf8',
+            collate: 'utf8_unicode_ci'
         }
     }
 );

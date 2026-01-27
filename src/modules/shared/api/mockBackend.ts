@@ -40,6 +40,12 @@ export const getSistemasAlta = async (): Promise<Sistema[]> => {
     return mockSistemas.filter(s => s.estado === 'ACTIVO' && s.aplicaAlta);
 };
 
+export const getSistemasBaja = async (): Promise<Sistema[]> => {
+    await delay(300);
+    // Filtra sistemas activos que aplican para Baja
+    return mockSistemas.filter(s => s.estado === 'ACTIVO' && s.aplicaBaja);
+};
+
 // Payload esperado para crear una solicitud (sin ID ni fecha)
 export type CreateSolicitudPayload = Omit<SolicitudConSistemas, 'id' | 'fechaCreacion' | 'sistemas'> & {
     sistemas: Omit<SolicitudSistema, 'id' | 'solicitudId'>[]
@@ -192,6 +198,7 @@ export const aprobarSolicitud = async (id: string): Promise<SolicitudConSistemas
         // Crear usuario real
         const nuevoUsuario: Usuario = {
             id: `u-${Date.now()}`,
+            id_usuario: Math.floor(Math.random() * 1000),
             nombre: solicitud.usuarioObjetivoNombre,
             correo: `${solicitud.usuarioObjetivoNombre.split(' ')[0].toLowerCase()}@empresa.com`,
             rol: 'ETIC',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PersonalDirectory } from '../components/PersonalDirectory';
+import { PersonalDirectory } from './PersonalDirectory';
 
 /**
  * Vista de Directorio de Personal para Jefatura.

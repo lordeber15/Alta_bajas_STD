@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import type { SolicitudConSistemas, Sistema } from '../types/models';
-import { ProgressBar } from '../components/ProgressBar';
+import { api } from '../shared/api/api';
+import type { SolicitudConSistemas, Sistema } from '../shared/types/models';
+import { ProgressBar } from '../shared/components/ProgressBar';
 import { toast } from 'sonner';
 
 /**
@@ -124,8 +124,7 @@ export const EticPendientesList: React.FC = () => {
                                     {sol.estado.includes('PENDIENTE') ? 'PENDIENTE' : 'EN PROCESO'}
                                 </span>
                             </div>
-                            <p className="text-xs text-gray-500 mb-2">{sol.cargo}</p>
-                            <div className="text-[10px] text-gray-400 font-mono">{sol.id}</div>
+                            <p className="text-xs text-gray-500">{sol.cargo}</p>
                         </div>
                     ))}
                 </div>
@@ -160,43 +159,22 @@ export const EticPendientesList: React.FC = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 bg-white">
-                            {(solicitudToView.estado === 'PENDIENTE_ALTA' || solicitudToView.estado === 'PENDIENTE_BAJA') && (
-                                <div className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center justify-between">
+                            {(solicitudToView.estado === 'PENDIENTE_ALTA' || solicitudToView.estado === 'PENDIENTE_BAJA') ? (
+                                <div className="mb-8 p-4 bg-yellow-50 border border-yellow-100 rounded-xl flex items-center justify-between animate-pulse">
                                     <div className="flex gap-3 items-center text-yellow-800">
                                         <span className="text-xl">⚠️</span>
                                         <p className="text-sm font-medium">Esta solicitud está pendiente de inicio.</p>
                                     </div>
                                     <button
                                         onClick={() => handleAtender(solicitudToView)}
-                                        className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold rounded-lg shadow-md transition-all"
+                                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg shadow-lg transition-all transform hover:scale-105"
                                     >
                                         Iniciar Atención
                                     </button>
                                 </div>
-                            )}
-
-                            {(solicitudToView.estado === 'EN_PROCESO_ALTA' || solicitudToView.estado === 'EN_PROCESO_BAJA') && (
-                                <div className="flex gap-4 mb-4">
-                                    <div className="flex-1"></div>
-                                    <button
-                                        onClick={async () => {
-                                            const motivo = "Observado por ETIC";
-                                            try {
-                                                await api.rechazarSolicitud(solicitudToView.id, motivo);
-                                                toast.info('Solicitud devuelta a OGA');
-                                                loadSolicitudes();
-                                                setSolicitudToView(null);
-                                            } catch (e) {
-                                                console.error(e);
-                                                toast.error('Error al observar solicitud.');
-                                            }
-                                        }}
-                                        className="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors border border-red-200"
-                                    >
-                                        Observar / Devolver
-                                    </button>
-
-                                    {Math.round(calcularProgreso(solicitudToView)) === 100 && (
+                            ) : (
+                                <div className="flex gap-4 mb-8">
+                                    {Math.round(calcularProgreso(solicitudToView)) === 100 ? (
                                         <button
                                             onClick={async () => {
                                                 try {
@@ -210,9 +188,28 @@ export const EticPendientesList: React.FC = () => {
                                                     toast.error('Error al enviar a validar.');
                                                 }
                                             }}
-                                            className={`px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-md transition-all ${solicitudToView.tipo === 'BAJA' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                            className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                                         >
-                                            Enviar a Validar
+                                            <span>✓</span> VALIDAR SOLICITUD
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={async () => {
+                                                const motivo = prompt("Ingrese el motivo de la observación:");
+                                                if (!motivo) return;
+                                                try {
+                                                    await api.rechazarSolicitud(solicitudToView.id, motivo);
+                                                    toast.info('Solicitud observada y devuelta a OGA');
+                                                    loadSolicitudes();
+                                                    setSolicitudToView(null);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    toast.error('Error al observar solicitud.');
+                                                }
+                                            }}
+                                            className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg transition-all"
+                                        >
+                                            OBSERVAR / DEVOLVER
                                         </button>
                                     )}
                                 </div>
