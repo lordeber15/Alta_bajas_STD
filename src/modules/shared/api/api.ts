@@ -19,7 +19,7 @@ import * as mockBackend from './mockBackend';
 
 // !IMPORTANTE: Cambiar a false cuando el backend Node.js esté listo y conectado
 export const USE_MOCK = false;
-const BACKEND_URL = 'http://localhost:3001/api';
+const BACKEND_URL = 'http://192.168.16.17:3001/api';
 
 /**
  * Interfaces para funciones API
