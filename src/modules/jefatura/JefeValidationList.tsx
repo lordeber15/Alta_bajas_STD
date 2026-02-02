@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../shared/api/api';
 import type { SolicitudConSistemas } from '../shared/types/models';
 import { ProgressBar } from '../shared/components/ProgressBar';
+import { ObservationModal } from '../shared/components/ObservationModal';
 import { toast } from 'sonner';
 
 /**
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 export const JefeValidationList: React.FC = () => {
     const [pendientes, setPendientes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
+    const [solicitudToObserve, setSolicitudToObserve] = useState<string | null>(null);
 
     /**
      * Carga las solicitudes que requieren validación por parte del Jefe.
@@ -55,11 +57,11 @@ export const JefeValidationList: React.FC = () => {
      * Rechaza u observa una solicitud, devolviéndola al inicio.
      * @param id El ID de la solicitud a rechazar/observar.
      */
-    const handleRechazar = async (id: string) => {
-        const motivo = "Observado por Jefatura";
+    const handleRechazar = async (id: string, motivo: string) => {
         try {
             await api.rechazarSolicitud(id, motivo);
             toast.info('Solicitud devuelta para corrección.');
+            setSolicitudToObserve(null);
             loadData();
         } catch (e) {
             console.error(e);
@@ -108,15 +110,28 @@ export const JefeValidationList: React.FC = () => {
                             {/* Progreso de la solicitud */}
                             <div className="mt-4 w-64">
                                 <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-1">
-                                    <span>Progreso</span>
+                                    <span>Progreso Técnico</span>
                                     <span>{Math.round(calcularProgreso(sol))}%</span>
                                 </div>
                                 <ProgressBar value={calcularProgreso(sol)} />
                             </div>
+
+                            {/* Sistemas solicitados */}
+                            <div className="mt-4 space-y-2">
+                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Desglose de Sistemas:</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {sol.sistemas.map(s => (
+                                        <div key={s.id} className="bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-lg">
+                                            <p className="text-xs font-bold text-gray-700">{s.sistemaNombre || s.sistemaId}</p>
+                                            {s.detalle && <p className="text-[10px] text-gray-500 italic leading-tight mt-0.5">{s.detalle}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                         <div className="flex gap-3">
                             <button
-                                onClick={() => handleRechazar(sol.id)}
+                                onClick={() => setSolicitudToObserve(sol.id)}
                                 className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors"
                             >
                                 Observar
@@ -133,6 +148,13 @@ export const JefeValidationList: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            <ObservationModal
+                isOpen={!!solicitudToObserve}
+                onClose={() => setSolicitudToObserve(null)}
+                onConfirm={(motivo) => solicitudToObserve && handleRechazar(solicitudToObserve, motivo)}
+                title="Observar Solicitud (Jefatura)"
+            />
         </div>
     );
 };

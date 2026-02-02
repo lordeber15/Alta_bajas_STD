@@ -122,7 +122,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
         try {
             const currentUser = await api.getCurrentUser();
 
-            const payload = {
+            const payload: any = {
                 usuarioObjetivoNombre: nombre,
                 usuarioObjetivoDniRuc: dni,
                 cargo: cargo,
@@ -133,6 +133,11 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
                     detalle: seleccionSistemas[sisId].detalle || undefined
                 }))
             };
+
+            // Regla de Negocio: Si la solicitud estaba OBSERVADA, al guardar vuelve a PENDIENTE
+            if (solicitudEdit?.estado === 'OBSERVADO') {
+                payload.id_estado_solicitud = 1; // 1: PENDIENTE
+            }
 
             if (solicitudEdit) {
                 await api.updateSolicitud(solicitudEdit.id, payload);
@@ -174,11 +179,32 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
                     {solicitudEdit ? 'Editar Solicitud' : 'Nueva Solicitud de Alta'}
                 </h2>
                 {solicitudEdit && (
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
-                        Editando: {solicitudEdit.id}
-                    </span>
+                    <div className="flex flex-col items-end">
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                            Editando: {solicitudEdit.id}
+                        </span>
+                        {solicitudEdit.estado === 'OBSERVADO' && (
+                            <span className="mt-1 px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold animate-pulse">
+                                REQUIERE CORRECCIÓN
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
+
+            {
+                solicitudEdit?.estado === 'OBSERVADO' && solicitudEdit.motivo && (
+                    <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex gap-4 items-start animate-fadeIn">
+                        <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-red-800 uppercase tracking-tight">Motivo de Observación:</h4>
+                            <p className="text-sm text-red-700 mt-0.5">{solicitudEdit.motivo}</p>
+                        </div>
+                    </div>
+                )
+            }
 
 
             <form onSubmit={handleSubmit} className="space-y-6">

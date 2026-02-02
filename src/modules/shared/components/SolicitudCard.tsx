@@ -44,6 +44,11 @@ export const SolicitudCard: React.FC<SolicitudCardProps> = ({
                         {solicitud.usuarioObjetivoNombre}
                     </h3>
                     <p className="text-gray-500 text-sm font-medium">{solicitud.cargo}</p>
+                    {solicitud.estado === 'OBSERVADO' && solicitud.motivo && (
+                        <p className="text-xs text-red-500 font-bold mt-1 line-clamp-1 italic">
+                            Obs: {solicitud.motivo}
+                        </p>
+                    )}
                 </div>
                 {showStatusBadge && (
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(solicitud.estado)}`}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api/api';
-import type { Usuario } from '../types/models';
+import { api } from '../shared/api/api';
+import type { Usuario } from '../shared/types/models';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
@@ -18,7 +18,7 @@ interface PersonalDirectoryProps {
  * Muestra la lista de usuarios con su código, nombre, estado y área.
  * Permite acciones dinámicas como Dar de Baja o Generar Alta.
  */
-export const PersonalDirectory: React.FC<PersonalDirectoryProps> = ({
+export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
     renderAction,
     actionLabel,
     onAction,
@@ -34,7 +34,7 @@ export const PersonalDirectory: React.FC<PersonalDirectoryProps> = ({
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Usuario; direction: 'asc' | 'desc' } | null>(null);
-    const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVO' | 'INACTIVO'>('ALL');
+    const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVO' | 'INACTIVO'>('ACTIVO');
     const [filterArea, setFilterArea] = useState<string>('ALL');
     const [searchTerm, setSearchTerm] = useState<string>('');
 

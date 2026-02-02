@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { EticPendientesList } from './EticPendientesList';
-import { PersonalDirectory } from '../shared/components/PersonalDirectory';
+import { UseiSeguimiento } from './UseiSeguimiento';
 
 /**
  * Dashboard para el módulo USEI (ETIC).
  * Implementa pestañas para separar las solicitudes pendientes del directorio de personal.
  */
 export const UseiDashboard: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'PENDING' | 'DIRECTORY'>('PENDING');
+    const [activeTab, setActiveTab] = useState<'PENDING' | 'SEGUIMIENTO'>('PENDING');
 
     return (
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
@@ -27,33 +27,28 @@ export const UseiDashboard: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('PENDING')}
                         className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${activeTab === 'PENDING'
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
-                        Solicitudes
+                        Bandeja Entrada
                     </button>
                     <button
-                        onClick={() => setActiveTab('DIRECTORY')}
-                        className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${activeTab === 'DIRECTORY'
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
+                        onClick={() => setActiveTab('SEGUIMIENTO')}
+                        className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${activeTab === 'SEGUIMIENTO'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
                             }`}
                     >
-                        Directorio
+                        Seguimiento
                     </button>
                 </div>
             </div>
 
             {/* Contenido Dinámico según la Pestaña */}
             <div className="animate-fadeIn">
-                {activeTab === 'PENDING' ? (
-                    <EticPendientesList />
-                ) : (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <PersonalDirectory />
-                    </div>
-                )}
+                {activeTab === 'PENDING' && <EticPendientesList />}
+                {activeTab === 'SEGUIMIENTO' && <UseiSeguimiento />}
             </div>
         </div>
     );

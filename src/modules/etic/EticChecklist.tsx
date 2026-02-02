@@ -2,32 +2,47 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../shared/api/api';
 import type { SolicitudConSistemas, Sistema } from '../shared/types/models';
 import { ProgressBar } from '../shared/components/ProgressBar';
+import { ObservationModal } from '../shared/components/ObservationModal';
 import { toast } from 'sonner';
 
 /**
  * Componente para el personal técnico ETIC.
  * Muestra solicitudes ya iniciadas (EN_PROCESO) para completar el checklist de sistemas.
  */
-export const EticChecklist: React.FC = () => {
+interface EticChecklistProps {
+    filterMode?: 'PENDING' | 'SENT';
+}
+
+export const EticChecklist: React.FC<EticChecklistProps> = ({ filterMode = 'PENDING' }) => {
     const [solicitudToView, setSolicitudToView] = useState<SolicitudConSistemas | null>(null);
     const [solicitudes, setSolicitudes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
     const [sistemasCache, setSistemasCache] = useState<Record<string, Sistema>>({});
+    const [showObsModal, setShowObsModal] = useState(false);
 
     const loadSolicitudes = async () => {
         setLoading(true);
         try {
-            // Cargamos tanto de alta como de baja
+            // Cargamos de alta y baja
             const altas = await api.getSolicitudesPendientesAlta();
             const bajas = await api.getSolicitudesPendientesBaja();
+            const validadas = await api.getSolicitudesValidadas(); // For historical
+            const paraValidar = await api.getSolicitudesParaValidar(); // Status 3
 
-            // Filtramos solo las que están EN_PROCESO
-            const inProcess = [...altas, ...bajas].filter(s => s.estado.includes('EN_PROCESO'));
+            let filtered: SolicitudConSistemas[] = [];
 
-            setSolicitudes(inProcess.sort((a, b) => new Date(a.fechaCreacion).getTime() - new Date(b.fechaCreacion).getTime()));
+            if (filterMode === 'PENDING') {
+                // Filtramos solo las que están EN_PROCESO (2)
+                filtered = [...altas, ...bajas].filter(s => s.estado.includes('EN_PROCESO'));
+            } else {
+                // Enviadas a validar (3) o Validadas/Completadas (4)
+                filtered = [...paraValidar, ...validadas];
+            }
+
+            setSolicitudes(filtered.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
         } catch (error) {
             console.error(error);
-            toast.error('Error al cargar checklist técnico.');
+            toast.error('Error al cargar solicitudes.');
         } finally {
             setLoading(false);
         }
@@ -42,15 +57,16 @@ export const EticChecklist: React.FC = () => {
             setSistemasCache(cache);
         };
         init();
-    }, []);
+    }, [filterMode]);
 
-    const handleMarcarSistemaCompletado = async (sistemaId: string) => {
+    const handleToggleSistema = async (sistemaId: string, currentStatus: string) => {
         if (!solicitudToView) return;
         try {
-            const updated = await api.marcarSistemaCompletado(solicitudToView.id, sistemaId);
+            const nextStatus = currentStatus === 'COMPLETADO' ? 'PENDIENTE' : 'COMPLETADO';
+            const updated = await api.marcarSistemaCompletado(solicitudToView.id, sistemaId, nextStatus);
             setSolicitudToView(updated);
             setSolicitudes(prev => prev.map(s => s.id === updated.id ? updated : s));
-            toast.success('Sistema actualizado.');
+            toast.success(`Sistema marcado como ${nextStatus.toLowerCase()}.`);
         } catch (error) {
             console.error(error);
             toast.error('Error al actualizar sistema.');
@@ -104,43 +120,37 @@ export const EticChecklist: React.FC = () => {
                             <p className="text-gray-500 mb-4">{solicitudToView.cargo} • DNI: {solicitudToView.usuarioObjetivoDniRuc}</p>
 
                             <div className="flex gap-4">
-                                {Math.round(calcularProgreso(solicitudToView)) === 100 ? (
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                const nextState = solicitudToView.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA';
-                                                await api.cambiarEstadoSolicitud(solicitudToView.id, nextState as any);
-                                                toast.success('Paso técnico completado. Enviado a Coordinación.');
-                                                loadSolicitudes();
-                                                setSolicitudToView(null);
-                                            } catch (e) {
-                                                console.error(e);
-                                                toast.error('Error al finalizar.');
-                                            }
-                                        }}
-                                        className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
-                                    >
-                                        FINALIZAR Y ENVIAR A VALIDAR
-                                    </button>
+                                {filterMode === 'PENDING' ? (
+                                    Math.round(calcularProgreso(solicitudToView)) === 100 ? (
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const nextState = solicitudToView.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA';
+                                                    await api.cambiarEstadoSolicitud(solicitudToView.id, nextState as any);
+                                                    toast.success('Paso técnico completado. Enviado a Coordinación.');
+                                                    loadSolicitudes();
+                                                    setSolicitudToView(null);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    toast.error('Error al finalizar.');
+                                                }
+                                            }}
+                                            className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
+                                        >
+                                            FINALIZAR Y ENVIAR A VALIDAR
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowObsModal(true)}
+                                            className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg transition-all"
+                                        >
+                                            OBSERVAR / DEVOLVER (INCOMPLETO)
+                                        </button>
+                                    )
                                 ) : (
-                                    <button
-                                        onClick={async () => {
-                                            const motivo = prompt("Ingrese el motivo de observación/devolución:");
-                                            if (!motivo) return;
-                                            try {
-                                                await api.rechazarSolicitud(solicitudToView.id, motivo);
-                                                toast.info('Solicitud devuelta a OGA.');
-                                                loadSolicitudes();
-                                                setSolicitudToView(null);
-                                            } catch (e) {
-                                                console.error(e);
-                                                toast.error('Error al observar.');
-                                            }
-                                        }}
-                                        className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg transition-all"
-                                    >
-                                        OBSERVAR / DEVOLVER (INCOMPLETO)
-                                    </button>
+                                    <div className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl text-center">
+                                        VISTA DE SÓLO LECTURA (EN VALIDACIÓN/COMPLETADA)
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -157,15 +167,18 @@ export const EticChecklist: React.FC = () => {
                                                 <p className="font-medium text-gray-800">{nombre}</p>
                                                 {sis.detalle && <p className="text-xs text-gray-500 mt-1">{sis.detalle}</p>}
                                             </div>
-                                            {!isDone && (
+                                            {filterMode === 'PENDING' && (
                                                 <button
-                                                    onClick={() => handleMarcarSistemaCompletado(sis.sistemaId)}
-                                                    className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all"
+                                                    onClick={() => handleToggleSistema(sis.sistemaId, sis.estadoAtencion)}
+                                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${isDone
+                                                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                                        }`}
                                                 >
-                                                    Listo
+                                                    {isDone ? 'Quitar' : 'Listo'}
                                                 </button>
                                             )}
-                                            {isDone && <span className="text-green-600 font-black">✓</span>}
+                                            {isDone && !filterMode.includes('PENDING') && <span className="text-green-600 font-black">✓</span>}
                                         </div>
                                     );
                                 })}
@@ -176,6 +189,25 @@ export const EticChecklist: React.FC = () => {
                     <div className="h-full flex items-center justify-center text-gray-400 italic">Seleccione un proceso activo para trabajar</div>
                 )}
             </div>
+
+            <ObservationModal
+                isOpen={showObsModal}
+                onClose={() => setShowObsModal(false)}
+                onConfirm={async (motivo) => {
+                    if (!solicitudToView) return;
+                    try {
+                        await api.rechazarSolicitud(solicitudToView.id, motivo);
+                        toast.info('Solicitud devuelta a OGA.');
+                        setShowObsModal(false);
+                        loadSolicitudes();
+                        setSolicitudToView(null);
+                    } catch (e) {
+                        console.error(e);
+                        toast.error('Error al observar.');
+                    }
+                }}
+                title="Observar Solicitud (ETIC)"
+            />
         </div>
     );
 };

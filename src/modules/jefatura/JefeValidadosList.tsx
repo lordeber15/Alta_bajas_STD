@@ -63,6 +63,15 @@ export const JefeValidadosList: React.FC = () => {
                             <div className="mt-4 w-64">
                                 <ProgressBar value={calcularProgreso(sol)} />
                             </div>
+
+                            {/* Sistemas Validados */}
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {sol.sistemas.map(s => (
+                                    <div key={s.id} className="bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg">
+                                        <p className="text-[10px] font-bold text-gray-600">{s.sistemaNombre || s.sistemaId}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div className="text-right">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Tipo de Trámite</span>

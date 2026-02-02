@@ -99,7 +99,7 @@ export const cambiarEstadoSolicitud = async (id: string, nuevoEstado: EstadoSoli
     return { ...solicitud }; // Retorna copia
 };
 
-export const marcarSistemaCompletado = async (solicitudId: string, sistemaId: string): Promise<SolicitudConSistemas> => {
+export const marcarSistemaCompletado = async (solicitudId: string, sistemaId: string, estado: 'PENDIENTE' | 'COMPLETADO' = 'COMPLETADO'): Promise<SolicitudConSistemas> => {
     await delay(300);
     const solicitud = mockSolicitudes.find(s => s.id === solicitudId);
     if (!solicitud) {
@@ -111,8 +111,8 @@ export const marcarSistemaCompletado = async (solicitudId: string, sistemaId: st
         throw new Error('Sistema no encontrado en la solicitud');
     }
 
-    sistema.estadoAtencion = 'COMPLETADO';
-    console.log(`[MOCK BACKEND] Sistema ${sistemaId} marcado como COMPLETADO en solicitud ${solicitudId}`);
+    sistema.estadoAtencion = estado;
+    console.log(`[MOCK BACKEND] Sistema ${sistemaId} marcado como ${estado} en solicitud ${solicitudId}`);
 
     return { ...solicitud };
 };

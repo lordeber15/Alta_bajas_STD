@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../shared/api/api';
 import type { SolicitudConSistemas, Sistema } from '../shared/types/models';
+import { ObservationModal } from '../shared/components/ObservationModal';
 import { toast } from 'sonner';
 
 /**
@@ -13,6 +14,7 @@ export const EticPendientesList: React.FC = () => {
     const [solicitudes, setSolicitudes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
     const [sistemasCache, setSistemasCache] = useState<Record<string, Sistema>>({});
+    const [showObservationModal, setShowObservationModal] = useState(false);
 
     const loadSolicitudes = async () => {
         setLoading(true);
@@ -100,12 +102,20 @@ export const EticPendientesList: React.FC = () => {
                                 <p className="text-sm text-blue-700 max-w-sm">
                                     Haga clic en el botón para recibir la solicitud e iniciar el trámite técnico.
                                 </p>
-                                <button
-                                    onClick={() => handleAtender(solicitudToView)}
-                                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all"
-                                >
-                                    RECIBIR E INICIAR ATENCIÓN
-                                </button>
+                                <div className="flex gap-4 w-full max-w-sm">
+                                    <button
+                                        onClick={() => setShowObservationModal(true)}
+                                        className="flex-1 py-3 bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 font-black rounded-xl transition-all"
+                                    >
+                                        OBSERVAR
+                                    </button>
+                                    <button
+                                        onClick={() => handleAtender(solicitudToView)}
+                                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all"
+                                    >
+                                        INICIAR
+                                    </button>
+                                </div>
                             </div>
 
                             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Sistemas Solicitados</h3>
@@ -126,6 +136,25 @@ export const EticPendientesList: React.FC = () => {
                     <div className="h-full flex items-center justify-center text-gray-400 italic">Seleccione una solicitud para comenzar</div>
                 )}
             </div>
+
+            <ObservationModal
+                isOpen={showObservationModal}
+                onClose={() => setShowObservationModal(false)}
+                onConfirm={async (motivo) => {
+                    if (!solicitudToView) return;
+                    try {
+                        await api.rechazarSolicitud(solicitudToView.id, motivo);
+                        toast.info('Solicitud devuelta a OGA.');
+                        setShowObservationModal(false);
+                        loadSolicitudes();
+                        setSolicitudToView(null);
+                    } catch (e) {
+                        console.error(e);
+                        toast.error('Error al observar.');
+                    }
+                }}
+                title="Observar Solicitud (USEI)"
+            />
         </div>
     );
 };

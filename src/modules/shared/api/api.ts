@@ -19,7 +19,7 @@ import * as mockBackend from './mockBackend';
 
 // !IMPORTANTE: Cambiar a false cuando el backend Node.js esté listo y conectado
 export const USE_MOCK = false;
-const BACKEND_URL = 'http://192.168.16.17:3001/api';
+const BACKEND_URL = import.meta.env.BACKEND_URL || 'http://192.168.16.17:3001/api';
 
 /**
  * Interfaces para funciones API
@@ -125,6 +125,7 @@ const realApi = {
             usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
+            oficinaNombre: s.tbl_area?.area || 'Sin área',
             estado: s.id_estado_solicitud === 2 ? 'EN_PROCESO_ALTA' : 'PENDIENTE_ALTA',
             creadoPorId: s.id_creado_por.toString(),
             documentoSustento: s.archivo_sustento,
@@ -161,11 +162,11 @@ const realApi = {
         return res.json();
     },
 
-    marcarSistemaCompletado: async (solicitudId: string, sistemaId: string): Promise<any> => {
+    marcarSistemaCompletado: async (solicitudId: string, sistemaId: string, estado: 'PENDIENTE' | 'COMPLETADO' = 'COMPLETADO'): Promise<any> => {
         const res = await fetch(`${BACKEND_URL}/solicitudes/${solicitudId}/sistemas/${sistemaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ estado_atencion: 'COMPLETADO' })
+            body: JSON.stringify({ estado_atencion: estado })
         });
         if (!res.ok) throw new Error('Error al actualizar sistema');
         const s = await res.json();
@@ -177,6 +178,7 @@ const realApi = {
             usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
+            oficinaNombre: s.tbl_area?.area || 'Sin área',
             estado: s.id_estado_solicitud === 2 ? (s.tipo === 'ALTA' ? 'EN_PROCESO_ALTA' : 'EN_PROCESO_BAJA') : (s.tipo === 'ALTA' ? 'PENDIENTE_ALTA' : 'PENDIENTE_BAJA'),
             creadoPorId: s.id_creado_por.toString(),
             fechaCreacion: s.createdAt,
@@ -218,10 +220,11 @@ const realApi = {
                 usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
                 cargo: s.cargo,
                 oficinaId: s.id_area.toString(),
+                oficinaNombre: s.tbl_area?.area || 'Sin área',
                 estado: estado,
                 creadoPorId: s.id_creado_por.toString(),
                 documentoSustento: s.archivo_sustento,
-                motivo: s.motivo_rechazo, // Para solicitudes observadas
+                motivo: s.motivo_observacion, // Para solicitudes observadas
                 fechaCreacion: s.createdAt,
                 sistemas: s.tbl_solicitud_sistemas?.map((ss: any) => ({
                     id: ss.id_solicitud_sistema.toString(),
@@ -259,6 +262,7 @@ const realApi = {
             usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
+            oficinaNombre: s.tbl_area?.area || 'Sin área',
             estado: s.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA',
             creadoPorId: s.id_creado_por.toString(),
             documentoSustento: s.archivo_sustento,
@@ -283,6 +287,7 @@ const realApi = {
             usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
+            oficinaNombre: s.tbl_area?.area || 'Sin área',
             estado: s.tipo === 'ALTA' ? 'COMPLETADO_ALTA' : 'COMPLETADO_BAJA',
             creadoPorId: s.id_creado_por.toString(),
             documentoSustento: s.archivo_sustento,
@@ -386,6 +391,7 @@ const realApi = {
             usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
             cargo: s.cargo,
             oficinaId: s.id_area.toString(),
+            oficinaNombre: s.tbl_area?.area || 'Sin área',
             estado: s.id_estado_solicitud === 2 ? 'EN_PROCESO_BAJA' : 'PENDIENTE_BAJA',
             creadoPorId: s.id_creado_por.toString(),
             documentoSustento: s.archivo_sustento,

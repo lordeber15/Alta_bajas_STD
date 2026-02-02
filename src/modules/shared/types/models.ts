@@ -59,6 +59,7 @@ export interface SolicitudSistema {
     id: string;
     solicitudId: string;
     sistemaId: string;
+    sistemaNombre?: string;
     requerido: boolean;
     detalle?: string; // Información extra si requiereDetalle es true
     estadoAtencion: 'PENDIENTE' | 'COMPLETADO';
@@ -74,6 +75,7 @@ export interface Solicitud {
     usuarioObjetivoDniRuc: string;
     cargo: string;
     oficinaId: string;
+    oficinaNombre?: string;
 
     estado: EstadoSolicitud;
     creadoPorId: string;

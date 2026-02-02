@@ -11,18 +11,21 @@ export const JefeResumen: React.FC = () => {
     const [personal, setPersonal] = useState<Usuario[]>([]);
     const [solicitudesVal, setSolicitudesVal] = useState<SolicitudConSistemas[]>([]);
     const [solicitudesBaja, setSolicitudesBaja] = useState<SolicitudConSistemas[]>([]);
+    const [solicitudesValidadas, setSolicitudesValidadas] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(true);
 
     const loadData = async () => {
         try {
-            const [personalData, solData, bajaData] = await Promise.all([
+            const [personalData, solData, bajaData, valData] = await Promise.all([
                 api.getPersonal(),
                 api.getSolicitudesParaValidar(),
-                api.getSolicitudesPendientesBaja()
+                api.getSolicitudesPendientesBaja(),
+                api.getSolicitudesValidadas()
             ]);
             setPersonal(personalData);
             setSolicitudesVal(solData);
             setSolicitudesBaja(bajaData);
+            setSolicitudesValidadas(valData);
         } catch (error) {
             console.error(error);
             toast.error('Error al cargar datos del resumen');
@@ -39,7 +42,17 @@ export const JefeResumen: React.FC = () => {
 
     // --- Cálculo de KPIs ---
     const totalActivos = personal.filter(u => u.id_estado === 8).length;
-    const totalInactivos = personal.filter(u => u.id_estado === 9).length;
+
+    // Usuarios Inactivos en los últimos 30 días (Heurística)
+    const treintaDiasAgo = new Date();
+    treintaDiasAgo.setDate(treintaDiasAgo.getDate() - 30);
+
+    const inactivosTreintaDias = personal.filter(u => {
+        if (u.id_estado !== 9) return false;
+        const ultBaja = solicitudesValidadas.find(s => s.tipo === 'BAJA' && s.usuarioObjetivoDniRuc === u.documento);
+        if (!ultBaja) return true;
+        return new Date(ultBaja.fechaCreacion) >= treintaDiasAgo;
+    }).length;
 
     // Validaciones: Altas vs Bajas
     const valAltas = solicitudesVal.filter(s => s.tipo === 'ALTA').length;
@@ -47,8 +60,8 @@ export const JefeResumen: React.FC = () => {
     const penValidacion = solicitudesVal.length;
 
     // Bajas: Pendientes vs En Proceso
-    const bajasPendientesInit = solicitudesBaja.filter(s => s.estado === 'PENDIENTE_BAJA').length;
-    const bajasEnProceso = solicitudesBaja.filter(s => s.estado === 'EN_PROCESO_BAJA').length;
+    const bajasPendientesInit = solicitudesBaja.filter((s: any) => s.estado === 'PENDIENTE_BAJA').length;
+    const bajasEnProceso = solicitudesBaja.filter((s: any) => s.estado === 'EN_PROCESO_BAJA').length;
     const penBaja = solicitudesBaja.length;
 
     // --- Datos para Gráfico de Distribución por Área ---
@@ -64,8 +77,8 @@ export const JefeResumen: React.FC = () => {
 
     // --- Datos para Gráfico de Estados ---
     const statusData = [
-        { name: 'Activos', value: totalActivos, color: '#10b981' }, // Emerald 500
-        { name: 'Inactivos', value: totalInactivos, color: '#ef4444' } // Red 500
+        { name: 'Activos', value: totalActivos, color: '#10b981' },
+        { name: 'Inactivos (30d)', value: inactivosTreintaDias, color: '#ef4444' }
     ];
 
     return (
@@ -115,8 +128,8 @@ export const JefeResumen: React.FC = () => {
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usuarios Inactivos</p>
-                        <h3 className="text-2xl font-black text-gray-900">{totalInactivos}</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bajas Recientes (30d)</p>
+                        <h3 className="text-2xl font-black text-gray-900">{inactivosTreintaDias}</h3>
                     </div>
                 </div>
             </div>

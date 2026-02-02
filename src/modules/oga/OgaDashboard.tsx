@@ -1,34 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { SolicitudCard } from '../shared/components/SolicitudCard';
 import { OgaAltaForm } from './OgaAltaForm';
-import { PersonalDirectory } from '../shared/components/PersonalDirectory';
+import { SolicitudReadDetail } from './SolicitudReadDetail';
 import { api } from '../shared/api/api';
-import type { SolicitudConSistemas, Usuario, Sistema } from '../shared/types/models';
+import type { SolicitudConSistemas, Usuario } from '../shared/types/models';
 import { toast } from 'sonner';
 
 export const OgaDashboard: React.FC = () => {
-    const [view, setView] = useState<'LIST' | 'CREATE' | 'EDIT' | 'DIRECTORY'>('LIST');
+    const [view, setView] = useState<'LIST' | 'CREATE' | 'EDIT' | 'DETAIL'>('LIST');
     const [misSolicitudes, setMisSolicitudes] = useState<SolicitudConSistemas[]>([]);
     const [loading, setLoading] = useState(false);
     const [solicitudToEdit, setSolicitudToEdit] = useState<SolicitudConSistemas | undefined>(undefined);
     const [userForAlta, setUserForAlta] = useState<Usuario | undefined>(undefined);
 
-    // Baja Modal State
-    const [showBajaModal, setShowBajaModal] = useState(false);
-    const [userToBaja, setUserToBaja] = useState<Usuario | null>(null);
-    const [userSystems, setUserSystems] = useState<Sistema[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
     /**
      * Carga las solicitudes del usuario actual desde la API.
-     * Señalización para API Real: Reemplazar api.getMisSolicitudes con un endpoint real.
      */
     const loadSolicitudes = async () => {
         setLoading(true);
         try {
             const user = await api.getCurrentUser();
             const data = await api.getMisSolicitudes(user.id);
+
+            // Regla de Negocio: Filtrar las completadas de hace más de 7 días
+            const now = new Date();
+            const filteredData = data.filter(sol => {
+                if (sol.estado.includes('COMPLETADO')) {
+                    const diffTime = Math.abs(now.getTime() - new Date(sol.fechaCreacion).getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays <= 7;
+                }
+                return true;
+            });
+
             // Ordenar por fecha desc
-            setMisSolicitudes(data.sort((a: SolicitudConSistemas, b: SolicitudConSistemas) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
+            setMisSolicitudes(filteredData.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()));
+            setCurrentPage(1); // Reset a primera página al recargar
         } catch (error) {
             console.error('Error cargando solicitudes:', error);
             toast.error('Error cargando solicitudes del servidor.');
@@ -36,6 +45,12 @@ export const OgaDashboard: React.FC = () => {
             setLoading(false);
         }
     };
+
+    // Paginación
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = misSolicitudes.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(misSolicitudes.length / itemsPerPage);
 
     useEffect(() => {
         if (view === 'LIST') {
@@ -45,20 +60,21 @@ export const OgaDashboard: React.FC = () => {
 
     /**
      * Maneja el inicio de la edición de una solicitud.
-     * Solo permite editar si el estado es pendiente o ha sido observado.
      */
     const handleEdit = (solicitud: SolicitudConSistemas) => {
-        // Solo permitir editar si está pendiente u observada
-        if (solicitud.estado === 'PENDIENTE_ALTA' || solicitud.estado === 'PENDIENTE_BAJA' || solicitud.estado === 'OBSERVADO') {
+        // Enforce strict rules: Only edit if OBSERVADO
+        const isEditable = solicitud.estado === 'OBSERVADO';
+
+        if (isEditable) {
             if (solicitud.estado === 'OBSERVADO' && solicitud.motivo) {
-                toast.info(`Atención, solicitud observada por: ${solicitud.motivo}`, {
-                    duration: 5000,
-                });
+                toast.info(`Solicitud observada: ${solicitud.motivo} `, { duration: 5000 });
             }
             setSolicitudToEdit(solicitud);
             setView('EDIT');
         } else {
-            toast.error('Solo se pueden editar solicitudes pendientes u observadas.');
+            setSolicitudToEdit(solicitud);
+            setView('DETAIL');
+            toast.info('Vista de solo lectura para solicitudes en curso.');
         }
     };
 
@@ -66,62 +82,6 @@ export const OgaDashboard: React.FC = () => {
         setView('LIST');
         setSolicitudToEdit(undefined);
         setUserForAlta(undefined);
-    };
-
-    /**
-     * Inicia el proceso de generación de alta para un usuario inactivo.
-     */
-    const handleGenerarAlta = (user: Usuario) => {
-        setUserForAlta(user);
-        setSolicitudToEdit(undefined);
-        setView('CREATE');
-    };
-
-    // Baja Logic
-    /**
-     * Inicia el proceso de baja para un usuario seleccionado del directorio.
-     * Carga los sistemas que el usuario tiene actualmente asignados.
-     */
-    const handleInitiateBaja = async (user: Usuario) => {
-        if (!user.sistemas || user.sistemas.length === 0) {
-            toast.info('Este usuario no tiene sistemas asignados para dar de baja.');
-            // For testing purposes, we might want to allow it or show a mock list
-            // return; 
-        }
-
-        setUserToBaja(user);
-
-        // Fetch full system details to show names (mock logic)
-        try {
-            const allSystems = await api.getSistemasAlta(); // Reusing Alta API as it returns all systems
-            // Filter systems the user has
-            const systemsDetails = allSystems.filter((s: Sistema) => user.sistemas?.includes(s.id));
-            setUserSystems(systemsDetails);
-            setShowBajaModal(true);
-        } catch (e) {
-            console.error(e);
-            toast.error('Error cargando sistemas del usuario');
-        }
-    };
-
-    /**
-     * Confirma la creación de una solicitud de baja.
-     * Señalización para API Real: Cambiar api.createSolicitudBaja por el endpoint de producción.
-     */
-    const confirmBaja = async () => {
-        if (!userToBaja) return;
-
-        try {
-            const sistemasIds = userSystems.map(s => s.id);
-            await api.createSolicitudBaja(userToBaja.id, sistemasIds); // Assuming basic logic: remove all currently assigned
-            toast.success('Solicitud de Baja creada exitosamente');
-            setShowBajaModal(false);
-            setUserToBaja(null);
-            setView('LIST'); // Go to list to see the new request
-        } catch (e) {
-            console.error(e);
-            toast.error('Error al crear solicitud de baja');
-        }
     };
 
     return (
@@ -134,16 +94,7 @@ export const OgaDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    {view !== 'DIRECTORY' && (
-                        <button
-                            onClick={() => setView('DIRECTORY')}
-                            className="px-4 py-3 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl shadow-sm font-medium transition-all"
-                        >
-                            Directorio de Personal
-                        </button>
-                    )}
-
-                    {view === 'DIRECTORY' && (
+                    {view === 'DETAIL' && (
                         <button
                             onClick={() => setView('LIST')}
                             className="px-4 py-3 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl shadow-sm font-medium transition-all"
@@ -199,35 +150,88 @@ export const OgaDashboard: React.FC = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {misSolicitudes.map((sol: SolicitudConSistemas) => (
-                                    <SolicitudCard
-                                        key={sol.id}
-                                        solicitud={sol}
-                                        actionLabel={
-                                            (sol.estado === 'PENDIENTE_ALTA' || sol.estado === 'PENDIENTE_BAJA')
-                                                ? 'Editar'
-                                                : (sol.estado === 'OBSERVADO' ? 'Corregir' : 'Ver Detalle')
-                                        }
-                                        onAction={() => handleEdit(sol)}
-                                        onClick={() => handleEdit(sol)}
-                                    />
-                                ))}
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-gray-50 border-b border-gray-100">
+                                            <tr>
+                                                <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                                                <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest">Tipo</th>
+                                                <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest">Usuario</th>
+                                                <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest">Estado</th>
+                                                <th className="px-6 py-4 text-[11px] font-black text-gray-400 uppercase tracking-widest text-right">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {currentItems.map((sol: SolicitudConSistemas) => (
+                                                <tr key={sol.id} className="hover:bg-blue-50/30 transition-colors group">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className="text-sm font-medium text-gray-600">
+                                                            {new Date(sol.fechaCreacion).toLocaleDateString()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${sol.tipo === 'ALTA' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                            }`}>
+                                                            {sol.tipo}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-bold text-gray-800">{sol.usuarioObjetivoNombre}</span>
+                                                            <span className="text-[11px] text-gray-500">{sol.cargo}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${sol.estado === 'OBSERVADO' ? 'bg-orange-100 text-orange-700 animate-pulse' :
+                                                                sol.estado.includes('COMPLETADO') ? 'bg-green-100 text-green-700' :
+                                                                    'bg-blue-100 text-blue-700'
+                                                            }`}>
+                                                            {sol.estado.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleEdit(sol)}
+                                                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all shadow-sm ${sol.estado === 'OBSERVADO'
+                                                                    ? 'bg-orange-500 text-white hover:bg-orange-600 hover:shadow-orange-200'
+                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            {sol.estado === 'OBSERVADO' ? 'CORREGIR' : 'DETALLES'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-4 py-4">
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="p-2 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                                        </button>
+                                        <span className="text-sm font-bold text-gray-600">
+                                            Página {currentPage} de {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2 rounded-lg border border-gray-200 disabled:opacity-30 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )
                     )}
-                </div>
-            )}
-
-            {view === 'DIRECTORY' && (
-                <div className="animate-fadeIn">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-6">Directorio de Personal</h2>
-                    <PersonalDirectory
-                        actionLabel="Dar de Baja"
-                        onAction={handleInitiateBaja}
-                        onGenerarAlta={handleGenerarAlta}
-                        onModificar={handleGenerarAlta}
-                    />
                 </div>
             )}
 
@@ -242,45 +246,15 @@ export const OgaDashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* Modal de Confirmación de Baja */}
-            {showBajaModal && userToBaja && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fadeIn">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scaleIn">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Confirmar Solicitud de Baja</h3>
-                        <p className="text-gray-600 mb-4">Se creará una solicitud para dar de baja los accesos de <span className="font-semibold">{userToBaja.nombre}</span>.</p>
-
-                        <div className="bg-gray-50 p-4 rounded-xl mb-6">
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Sistemas a desactivar:</h4>
-                            {userSystems.length > 0 ? (
-                                <ul className="space-y-2">
-                                    {userSystems.map(s => (
-                                        <li key={s.id} className="flex items-center gap-2 text-sm text-gray-700">
-                                            <span className="text-red-500">×</span> {s.nombre}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-gray-400 italic">No se encontraron sistemas registrados.</p>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowBajaModal(false)}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmBaja}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-lg shadow-red-500/30 transition-all"
-                            >
-                                Crear Solicitud de Baja
-                            </button>
-                        </div>
-                    </div>
+            {view === 'DETAIL' && solicitudToEdit && (
+                <div className="animate-slideUp">
+                    <SolicitudReadDetail
+                        solicitud={solicitudToEdit}
+                        onBack={() => setView('LIST')}
+                    />
                 </div>
             )}
+
         </div>
     );
 };
