@@ -40,7 +40,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ mode, solicitudEdit, i
                 // Pero controlaremos la visualización en el renderizado
                 const [oficinasData, sistemasCat] = await Promise.all([
                     api.getOficinas(),
-                    api.getSistemasAlta()
+                    api.getSistemas()
                 ]);
                 setOficinas(oficinasData);
                 setSistemas(sistemasCat);
@@ -338,10 +338,22 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ mode, solicitudEdit, i
                     <div className="grid grid-cols-1 gap-4">
                         {sistemas
                             .filter(sis => {
+                                // Si estamos editando una solicitud existente (ej. una observada), 
+                                // debemos mostrar todos los sistemas posibles para permitir correcciones completas.
+                                if (solicitudEdit) return true;
+
                                 if (mode === 'BAJA') {
-                                    // En BAJA solo mostrar los que el usuario ya tiene
-                                    return initialUser?.sistemas?.includes(sis.id);
+                                    // Solo los que tiene y que se pueden dar de baja
+                                    return initialUser?.sistemas?.includes(sis.id) && sis.aplicaBaja;
                                 }
+                                if (mode === 'ALTA' && initialUser) {
+                                    // Solo los que NO tiene y que se pueden dar de alta
+                                    return !initialUser.sistemas?.includes(sis.id) && sis.aplicaAlta;
+                                }
+                                if (mode === 'ALTA') {
+                                    return sis.aplicaAlta;
+                                }
+                                // Por defecto mostrar todo (MODIFICACION u otros)
                                 return true;
                             })
                             .map(sis => {

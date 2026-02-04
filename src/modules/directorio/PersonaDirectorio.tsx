@@ -3,6 +3,7 @@ import { api } from '../shared/api/api';
 import type { Usuario } from '../shared/types/models';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { UserDetailsModal } from '../shared/components/UserDetailsModal';
 
 interface PersonalDirectoryProps {
     renderAction?: (user: Usuario) => React.ReactNode;
@@ -43,6 +44,8 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVO' | 'INACTIVO'>('ACTIVO');
     const [filterArea, setFilterArea] = useState<string>('ALL');
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
     const loadData = async () => {
         setLoading(true);
@@ -204,7 +207,7 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
 
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left table-fixed">
+                    <table className="w-full text-left table-fixe">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 {!simplified && (
@@ -232,7 +235,7 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
                                 >
                                     <div className="flex items-center">Área <SortIcon column="areaName" /></div>
                                 </th>
-                                {!simplified && <th className="w-40 px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>}
+                                <th className={`${simplified ? 'w-40' : 'w-48'} px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right`}>Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -253,25 +256,37 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
                                         <td className="px-6 py-4 text-sm text-gray-500 break-words line-clamp-2" title={user.areaName}>
                                             {user.areaName}
                                         </td>
-                                        {!simplified && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <div className="flex gap-2 justify-end">
+                                                {/* Botón de Detalles - Siempre visible */}
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedUser(user);
+                                                        setShowDetailsModal(true);
+                                                    }}
+                                                    className="px-3 py-2 bg-gray-50 text-gray-600 hover:bg-gray-600 hover:text-white rounded-lg font-bold transition-all border border-gray-200 text-xs shadow-sm"
+                                                    title="Ver detalles y sistemas asignados"
+                                                >
+                                                    Detalles
+                                                </button>
+
+                                                {/* Acciones opcionales (Alta/Baja) */}
                                                 {renderAction ? renderAction(user) : (
-                                                    isActive ? (
-                                                        <div className="flex gap-2 justify-end">
-                                                            {!isModificarHidden?.(user) && (
-                                                                <button
-                                                                    onClick={() => onModificar?.(user)}
-                                                                    disabled={isActionDisabled?.(user.id_usuario)}
-                                                                    className={`px-3 py-2 rounded-lg font-bold transition-all border text-xs shadow-sm ${isActionDisabled?.(user.id_usuario)
-                                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100'
-                                                                        }`}
-                                                                >
-                                                                    Modificar
-                                                                </button>
-                                                            )}
+                                                    <>
+                                                        {/* Botón Alta - Solo si se proporciona la función */}
+                                                        {onGenerarAlta && (
                                                             <button
-                                                                onClick={() => onAction?.(user)}
+                                                                onClick={() => onGenerarAlta(user)}
+                                                                className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold transition-all border border-blue-100 text-xs shadow-sm"
+                                                            >
+                                                                Alta
+                                                            </button>
+                                                        )}
+
+                                                        {/* Botón Baja - Solo si se proporciona la función y el usuario está activo */}
+                                                        {onAction && isActive && (
+                                                            <button
+                                                                onClick={() => onAction(user)}
                                                                 disabled={isActionDisabled?.(user.id_usuario)}
                                                                 className={`px-3 py-2 rounded-lg font-bold transition-all border text-xs shadow-sm ${isActionDisabled?.(user.id_usuario)
                                                                     ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
@@ -280,18 +295,11 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
                                                             >
                                                                 {actionLabel || 'Dar de Baja'}
                                                             </button>
-                                                        </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => onGenerarAlta?.(user)}
-                                                            className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold transition-all border border-blue-100 text-xs"
-                                                        >
-                                                            Generar Alta
-                                                        </button>
-                                                    )
+                                                        )}
+                                                    </>
                                                 )}
-                                            </td>
-                                        )}
+                                            </div>
+                                        </td>
                                     </tr>
                                 );
                             })}
@@ -324,6 +332,16 @@ export const PersonaDirectorio: React.FC<PersonalDirectoryProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Modal de Detalles */}
+            <UserDetailsModal
+                user={selectedUser}
+                isOpen={showDetailsModal}
+                onClose={() => {
+                    setShowDetailsModal(false);
+                    setSelectedUser(null);
+                }}
+            />
         </div>
     );
 };

@@ -1,10 +1,48 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PersonaDirectorio } from './PersonaDirectorio';
 import { toast } from 'sonner';
+import { api } from '../shared/api/api';
+import type { SolicitudConSistemas } from '../shared/types/models';
 
 export const DirectorioPage: React.FC = () => {
     const navigate = useNavigate();
+    const [misSolicitudes, setMisSolicitudes] = useState<SolicitudConSistemas[]>([]);
+    const [totalSystemsCount, setTotalSystemsCount] = useState<number>(0);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            setLoading(true);
+            try {
+                const user = await api.getCurrentUser();
+                const [solicitudesData, systems] = await Promise.all([
+                    api.getMisSolicitudes(user.id),
+                    api.getSistemas()
+                ]);
+                setMisSolicitudes(solicitudesData);
+                // Solo contamos los que aplican para alta
+                setTotalSystemsCount(systems.filter((s: any) => s.aplicaAlta).length);
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadInitialData();
+    }, []);
+
+    const hasPendingSolicitud = (usuarioId: number) => {
+        return misSolicitudes.some(sol =>
+            sol.usuarioObjetivoId === usuarioId &&
+            !sol.estado.includes('COMPLETADO') &&
+            sol.estado !== 'ANULADO'
+        );
+    };
+
+    const isModificarHidden = (user: any) => {
+        return (user.sistemas?.length || 0) >= totalSystemsCount;
+    };
 
     return (
         <div className="max-w-7xl mx-auto py-8 px-4 animate-fadeIn">
@@ -35,25 +73,45 @@ export const DirectorioPage: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-100 overflow-hidden">
                 <div className="p-1 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
                 <div className="p-6">
-                    <PersonaDirectorio
-                        showExport={true}
-                        onAction={(user) => {
-                            toast.info(`Redirigiendo para baja de: ${user.nombre}`);
-                            navigate('/oga', { state: { initialUser: user, mode: 'BAJA' } });
-                        }}
-                        onModificar={(user) => {
-                            toast.info(`Redirigiendo para modificar: ${user.nombre}`);
-                            navigate('/oga', { state: { initialUser: user, mode: 'MODIFICACION' } });
-                        }}
-                        onGenerarAlta={(user) => {
-                            toast.info(`Redirigiendo para alta de: ${user.nombre}`);
-                            navigate('/oga', { state: { initialUser: user, mode: 'ALTA' } });
-                        }}
-                    />
+                    {loading ? (
+                        <div className="flex justify-center py-20">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                        </div>
+                    ) : (
+                        <PersonaDirectorio
+                            showExport={true}
+                            isActionDisabled={hasPendingSolicitud}
+                            isModificarHidden={isModificarHidden}
+                            onAction={(user) => {
+                                if (hasPendingSolicitud(user.id_usuario)) {
+                                    toast.warning(`El usuario ${user.nombre} ya tiene una solicitud pendiente.`);
+                                    return;
+                                }
+                                toast.info(`Redirigiendo para baja de: ${user.nombre}`);
+                                navigate('/oga', { state: { initialUser: user, mode: 'BAJA' } });
+                            }}
+                            onModificar={(user) => {
+                                if (hasPendingSolicitud(user.id_usuario)) {
+                                    toast.warning(`El usuario ${user.nombre} ya tiene una solicitud pendiente.`);
+                                    return;
+                                }
+                                toast.info(`Redirigiendo para modificar: ${user.nombre}`);
+                                navigate('/oga', { state: { initialUser: user, mode: 'MODIFICACION' } });
+                            }}
+                            onGenerarAlta={(user) => {
+                                if (hasPendingSolicitud(user.id_usuario)) {
+                                    toast.warning(`El usuario ${user.nombre} ya tiene una solicitud pendiente.`);
+                                    return;
+                                }
+                                toast.info(`Redirigiendo para alta de: ${user.nombre}`);
+                                navigate('/oga', { state: { initialUser: user, mode: 'ALTA' } });
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                     <h3 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
                         <span>📝</span> Altas
@@ -65,12 +123,6 @@ export const DirectorioPage: React.FC = () => {
                         <span>🚫</span> Bajas
                     </h3>
                     <p className="text-sm text-red-700">Utilice "Dar de Baja" para retirar accesos de personal que cesa funciones.</p>
-                </div>
-                <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
-                    <h3 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
-                        <span>⚙️</span> Modificaciones
-                    </h3>
-                    <p className="text-sm text-indigo-700">Cambie los sistemas asignados a un usuario activo mediante "Modificar".</p>
                 </div>
             </div>
         </div>

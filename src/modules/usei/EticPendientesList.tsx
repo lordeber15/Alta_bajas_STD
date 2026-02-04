@@ -80,7 +80,15 @@ export const EticPendientesList: React.FC = () => {
                             onClick={() => setSolicitudToView(sol)}
                             className={`p-4 rounded-xl cursor-pointer border transition-all duration-200 ${solicitudToView?.id === sol.id ? 'bg-blue-50 border-blue-200' : 'bg-white border-transparent hover:bg-gray-50'}`}
                         >
-                            <div className="font-semibold text-gray-800">{sol.usuarioObjetivoNombre}</div>
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="font-semibold text-gray-800">{sol.usuarioObjetivoNombre}</div>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${sol.tipo === 'ALTA' ? 'bg-green-100 text-green-700' :
+                                        sol.tipo === 'BAJA' ? 'bg-red-100 text-red-700' :
+                                            'bg-blue-100 text-blue-700'
+                                    }`}>
+                                    {sol.tipo === 'MODIFICACION' ? 'MODIF.' : sol.tipo}
+                                </span>
+                            </div>
                             <p className="text-xs text-gray-500 mt-1">{sol.cargo}</p>
                         </div>
                     ))}

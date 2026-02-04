@@ -27,7 +27,7 @@ export const OgaDashboard: React.FC = () => {
             try {
                 const systems = await api.getSistemas();
                 // Solo contamos los que aplican para alta
-                const count = systems.filter((s: any) => s.aplica_alta).length;
+                const count = systems.filter((s: any) => s.aplicaAlta).length;
                 setTotalSystemsCount(count);
             } catch (error) {
                 console.error('Error fetching systems count:', error);
@@ -39,7 +39,7 @@ export const OgaDashboard: React.FC = () => {
     useEffect(() => {
         if (location.state?.initialUser) {
             setUserForAlta(location.state.initialUser);
-            setFormMode('ALTA'); // Default to ALTA when coming from initialUser
+            setFormMode(location.state.mode || 'ALTA');
             setView('CREATE');
             // Limpiar el estado para que no se repita al recargar
             window.history.replaceState({}, document.title);

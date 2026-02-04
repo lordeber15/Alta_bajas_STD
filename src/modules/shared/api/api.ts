@@ -57,8 +57,8 @@ const realApi = {
         return data.map((s: any) => ({
             id: s.id_sistema.toString(),
             nombre: s.nombre,
-            aplica_alta: !!s.aplica_alta,
-            aplica_baja: !!s.aplica_baja,
+            aplicaAlta: !!s.aplica_alta,
+            aplicaBaja: !!s.aplica_baja,
             requiereDetalle: !!s.requiere_detalle
         }));
     },
@@ -468,26 +468,38 @@ const realApi = {
         const res = await fetch(`${BACKEND_URL}/solicitudes`);
         if (!res.ok) throw new Error('Error al obtener solicitudes');
         const data = await res.json();
-        return data.filter((s: any) => s.tipo === 'BAJA' && ['PENDIENTE', 'EN PROCESO'].includes(s.tbl_estado_solicitud?.nombre)).map((s: any) => ({
-            id: s.id_solicitud.toString(),
-            tipo: s.tipo,
-            usuarioObjetivoId: s.id_usuario_objetivo,
-            usuarioObjetivoNombre: s.usuario_objetivo_nombre,
-            usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
-            cargo: s.cargo,
-            oficinaId: s.id_area.toString(),
-            oficinaNombre: s.tbl_area?.area || 'Sin área',
-            estado: s.tbl_estado_solicitud?.nombre === 'EN PROCESO' ? 'EN_PROCESO_BAJA' : 'PENDIENTE_BAJA',
-            creadoPorId: s.id_creado_por.toString(),
-            documentoSustento: s.archivo_sustento,
-            sistemas: s.tbl_solicitud_sistemas?.map((ss: any) => ({
-                id: ss.id_solicitud_sistema.toString(),
-                sistemaId: ss.id_sistema.toString(),
-                sistemaNombre: ss.tbl_sistema?.nombre || 'S/N',
-                detalle: ss.detalle,
-                estadoAtencion: ss.estado_atencion
-            })) || []
-        }));
+        return data.filter((s: any) => s.tipo === 'BAJA' && ['PENDIENTE_OGA', 'EN_PROCESO_USEI', 'TECNICO_ETIC'].includes(s.tbl_estado_solicitud?.nombre)).map((s: any) => {
+            const nombreEstado = s.tbl_estado_solicitud?.nombre;
+            let estado: any = 'PENDIENTE_BAJA';
+            if (nombreEstado === 'EN_PROCESO_USEI') {
+                estado = 'EN_PROCESO_BAJA';
+            } else if (nombreEstado === 'TECNICO_ETIC') {
+                estado = 'TECNICO_BAJA';
+            } else if (nombreEstado === 'PARA_VALIDAR') {
+                estado = 'PARA_VALIDAR_BAJA';
+            }
+
+            return {
+                id: s.id_solicitud.toString(),
+                tipo: s.tipo,
+                usuarioObjetivoId: s.id_usuario_objetivo,
+                usuarioObjetivoNombre: s.usuario_objetivo_nombre,
+                usuarioObjetivoDniRuc: s.usuario_objetivo_dni_ruc,
+                cargo: s.cargo,
+                oficinaId: s.id_area.toString(),
+                oficinaNombre: s.tbl_area?.area || 'Sin área',
+                estado: estado,
+                creadoPorId: s.id_creado_por.toString(),
+                documentoSustento: s.archivo_sustento,
+                sistemas: s.tbl_solicitud_sistemas?.map((ss: any) => ({
+                    id: ss.id_solicitud_sistema.toString(),
+                    sistemaId: ss.id_sistema.toString(),
+                    sistemaNombre: ss.tbl_sistema?.nombre || 'S/N',
+                    detalle: ss.detalle,
+                    estadoAtencion: ss.estado_atencion
+                })) || []
+            };
+        });
     },
 
     getSistemasBase: async (): Promise<any[]> => {
@@ -515,7 +527,7 @@ const realApi = {
         const res = await fetch(`${BACKEND_URL}/solicitudes/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_estado_solicitud: 6 })
+            body: JSON.stringify({ id_estado_solicitud: 7 })
         });
         if (!res.ok) throw new Error('Error al anular');
     }

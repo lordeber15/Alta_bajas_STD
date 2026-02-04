@@ -104,6 +104,12 @@ export const EticChecklist: React.FC<EticChecklistProps> = ({ filterMode = 'PEND
                         >
                             <div className="flex justify-between items-start mb-1">
                                 <span className="font-semibold text-gray-800">{sol.usuarioObjetivoNombre}</span>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${sol.tipo === 'ALTA' ? 'bg-green-100 text-green-700' :
+                                        sol.tipo === 'BAJA' ? 'bg-red-100 text-red-700' :
+                                            'bg-blue-100 text-blue-700'
+                                    }`}>
+                                    {sol.tipo === 'MODIFICACION' ? 'MODIF.' : sol.tipo}
+                                </span>
                             </div>
                             <p className="text-xs text-gray-500 mb-2">{sol.cargo}</p>
                             <ProgressBar value={calcularProgreso(sol)} />
