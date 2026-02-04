@@ -4,7 +4,7 @@ import { OgaDashboard } from './modules/oga/OgaDashboard';
 import { UseiDashboard } from './modules/usei/UseiDashboard';
 import { JefeDashboard } from './modules/jefatura/JefeDashboard';
 import { EticDashboard } from './modules/etic/EticDashboard';
-import { PersonaDirectorio } from './modules/directorio/PersonaDirectorio';
+import { DirectorioPage } from './modules/directorio/DirectorioPage';
 
 /**
  * Componente principal de la aplicación.
@@ -15,8 +15,8 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
         <Toaster position="top-right" richColors closeButton />
-        {/* 
-        Global Navigation Bar
+
+        {/* Global Navigation Bar */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -61,21 +61,14 @@ function App() {
               </div>
             </div>
           </div>
-        </header> */}
+        </header>
 
         <main className="flex-grow">
           <Routes>
             <Route path="/oga" element={<OgaDashboard />} />
             <Route path="/usei" element={<UseiDashboard />} />
             <Route path="/etic" element={<EticDashboard />} />
-            <Route path="/directorio" element={
-              <div className="max-w-7xl mx-auto py-8 px-4">
-                <h1 className="text-3xl font-black text-gray-900 mb-6">Directorio <span className="text-blue-600">Personal</span></h1>
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <PersonaDirectorio />
-                </div>
-              </div>
-            } />
+            <Route path="/directorio" element={<DirectorioPage />} />
             <Route path="/jefatura" element={
               <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                 <JefeDashboard />

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { EticPendientesList } from './EticPendientesList';
 import { UseiSeguimiento } from './UseiSeguimiento';
+import { PersonaDirectorio } from '../directorio/PersonaDirectorio';
 
 /**
  * Dashboard para el módulo USEI (ETIC).
  * Implementa pestañas para separar las solicitudes pendientes del directorio de personal.
  */
 export const UseiDashboard: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'PENDING' | 'SEGUIMIENTO'>('PENDING');
+    const [activeTab, setActiveTab] = useState<'PENDING' | 'SEGUIMIENTO' | 'DIRECTORIO'>('PENDING');
 
     return (
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
@@ -42,6 +43,15 @@ export const UseiDashboard: React.FC = () => {
                     >
                         Seguimiento
                     </button>
+                    <button
+                        onClick={() => setActiveTab('DIRECTORIO')}
+                        className={`px-6 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${activeTab === 'DIRECTORIO'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Directorio Institucional
+                    </button>
                 </div>
             </div>
 
@@ -49,6 +59,11 @@ export const UseiDashboard: React.FC = () => {
             <div className="animate-fadeIn">
                 {activeTab === 'PENDING' && <EticPendientesList />}
                 {activeTab === 'SEGUIMIENTO' && <UseiSeguimiento />}
+                {activeTab === 'DIRECTORIO' && (
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-fadeIn">
+                        <PersonaDirectorio simplified={true} />
+                    </div>
+                )}
             </div>
         </div>
     );

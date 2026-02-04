@@ -4,13 +4,14 @@ import type { Oficina, Sistema, SolicitudConSistemas, Usuario } from '../shared/
 import { toast } from 'sonner';
 
 interface OgaAltaFormProps {
+    mode: 'ALTA' | 'BAJA' | 'MODIFICACION';
     solicitudEdit?: SolicitudConSistemas; // Si viene, es edición
     initialUser?: Usuario; // Si viene, es pre-llenado para alta
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initialUser, onSuccess, onCancel }) => {
+export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ mode, solicitudEdit, initialUser, onSuccess, onCancel }) => {
     const [oficinas, setOficinas] = useState<Oficina[]>([]);
     const [sistemas, setSistemas] = useState<Sistema[]>([]);
 
@@ -20,61 +21,74 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
     const [cargo, setCargo] = useState('');
     const [oficinaId, setOficinaId] = useState('');
 
-    // Estado para selección: record de ID -> { selected, detalle }
-    const [seleccionSistemas, setSeleccionSistemas] = useState<Record<string, { selected: boolean; detalle: string }>>({});
+    // Estado para selección: record de ID -> { selected, detalle, locked? }
+    const [seleccionSistemas, setSeleccionSistemas] = useState<Record<string, { selected: boolean; detalle: string; locked?: boolean }>>({});
 
     const [archivoSustento, setArchivoSustento] = useState<File | null>(null);
 
     const [loading, setLoading] = useState(false);
     // Nota: El estado 'message' local ha sido reemplazado por Toasts globales para mejorar la UI.
 
+    // Modos: ALTA, BAJA, MODIFICACION (Ahora viene por prop)
+
     // Carga inicial de datos maestros
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [oficinasData, sistemasData] = await Promise.all([
+                // Obtenemos oficinas y sistemas según el modo
+                // Para BAJA y MODIFICACION usaremos getSistemasAlta por defecto (catálogo completo)
+                // Pero controlaremos la visualización en el renderizado
+                const [oficinasData, sistemasCat] = await Promise.all([
                     api.getOficinas(),
                     api.getSistemasAlta()
                 ]);
                 setOficinas(oficinasData);
-                setSistemas(sistemasData);
+                setSistemas(sistemasCat);
 
                 // -- MODO CREACIÓN o PRE-LLENADO --
                 if (!solicitudEdit) {
                     if (initialUser) {
-                        // Pre-llenar con datos del usuario inactivo
+                        // Los datos del usuario determinan los sistemas a mostrar
+
+                        // Pre-llenar con datos del usuario
                         setNombre(initialUser.nombre);
                         setDni(initialUser.documento || '');
                         setCargo(initialUser.cargo || '');
                         setOficinaId(initialUser.oficinaId || (oficinasData.length > 0 ? oficinasData[0].id : ''));
-                    } else if (oficinasData.length > 0) {
-                        setOficinaId(oficinasData[0].id);
-                    }
 
-                    const initialSelection: Record<string, { selected: boolean; detalle: string }> = {};
-                    sistemasData.forEach(s => {
-                        initialSelection[s.id] = { selected: false, detalle: '' };
-                    });
-                    setSeleccionSistemas(initialSelection);
+                        // Inicializar selección
+                        const initialSelection: Record<string, { selected: boolean; detalle: string; locked?: boolean }> = {};
+                        sistemasCat.forEach(s => {
+                            const userHasIt = initialUser.sistemas?.includes(s.id);
+                            initialSelection[s.id] = {
+                                selected: userHasIt || false,
+                                detalle: '',
+                                locked: userHasIt // Para MODIFICACIÓN, los que ya tiene se bloquean
+                            };
+                        });
+                        setSeleccionSistemas(initialSelection);
+
+                    } else {
+                        if (oficinasData.length > 0) setOficinaId(oficinasData[0].id);
+                        const initialSelection: Record<string, { selected: boolean; detalle: string }> = {};
+                        sistemasCat.forEach(s => {
+                            initialSelection[s.id] = { selected: false, detalle: '' };
+                        });
+                        setSeleccionSistemas(initialSelection);
+                    }
                 } else {
                     // -- MODO EDICIÓN --
-                    // Pre-llenar campos
                     setNombre(solicitudEdit.usuarioObjetivoNombre);
                     setDni(solicitudEdit.usuarioObjetivoDniRuc);
                     setCargo(solicitudEdit.cargo);
                     setOficinaId(solicitudEdit.oficinaId);
 
-                    // Mapear sistemas existentes a la estructura de selección local
                     const selection: Record<string, { selected: boolean; detalle: string }> = {};
-
-                    // Primero inicializamos todos en false
-                    sistemasData.forEach(s => {
+                    sistemasCat.forEach(s => {
                         selection[s.id] = { selected: false, detalle: '' };
                     });
 
-                    // Luego marcamos los que vienen en la solicitud
                     solicitudEdit.sistemas.forEach(sis => {
-                        // Buscamos si el sistema existe en el catálogo actual (podría haberse desactivado)
                         if (selection[sis.sistemaId]) {
                             selection[sis.sistemaId] = {
                                 selected: true,
@@ -91,7 +105,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
             }
         };
         loadData();
-    }, [solicitudEdit]); // Se re-ejecuta si cambia la solicitud a editar
+    }, [solicitudEdit, initialUser]);
 
 
     const handleSystemCheck = (sistemaId: string, checked: boolean) => {
@@ -111,10 +125,23 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const sistemasSeleccionadosIds = Object.keys(seleccionSistemas).filter(id => seleccionSistemas[id].selected);
 
-        if (sistemasSeleccionadosIds.length === 0) {
-            toast.error('Debe seleccionar al menos un sistema.');
+        const sistemasSeleccionadosIds = Object.keys(seleccionSistemas).filter(id => {
+            if (mode === 'MODIFICACION') {
+                // En modificación, solo enviar los que NO estaban bloqueados (los nuevos)
+                return seleccionSistemas[id].selected && !seleccionSistemas[id].locked;
+            }
+            return seleccionSistemas[id].selected;
+        });
+
+        if (sistemasSeleccionadosIds.length === 0 && mode !== 'BAJA') {
+            toast.error('Debe seleccionar al menos un sistema nuevo.');
+            setLoading(false);
+            return;
+        }
+
+        if (mode === 'BAJA' && Object.keys(seleccionSistemas).filter(id => seleccionSistemas[id].selected).length === 0) {
+            toast.error('Debe seleccionar al menos un sistema para dar de baja.');
             setLoading(false);
             return;
         }
@@ -122,47 +149,53 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
         try {
             const currentUser = await api.getCurrentUser();
 
-            const payload: any = {
-                usuarioObjetivoNombre: nombre,
-                usuarioObjetivoDniRuc: dni,
-                cargo: cargo,
-                oficinaId: parseInt(oficinaId),
-                creadoPorId: currentUser.id,
-                sistemas: sistemasSeleccionadosIds.map(sisId => ({
-                    sistemaId: sisId,
-                    detalle: seleccionSistemas[sisId].detalle || undefined
-                }))
-            };
-
-            // Regla de Negocio: Si la solicitud estaba OBSERVADA, al guardar vuelve a PENDIENTE
-            if (solicitudEdit?.estado === 'OBSERVADO') {
-                payload.id_estado_solicitud = 1; // 1: PENDIENTE
-            }
-
-            if (solicitudEdit) {
+            if (mode === 'BAJA' && initialUser) {
+                const idsParaBaja = Object.keys(seleccionSistemas).filter(id => seleccionSistemas[id].selected);
+                await api.createSolicitudBaja(initialUser.id_usuario, idsParaBaja, archivoSustento || undefined);
+                toast.success('Solicitud de baja creada con éxito!');
+            } else if (solicitudEdit) {
+                const payload: any = {
+                    usuarioObjetivoNombre: nombre,
+                    usuarioObjetivoDniRuc: dni,
+                    cargo: cargo,
+                    oficinaId: parseInt(oficinaId),
+                    creadoPorId: currentUser.id_usuario,
+                    sistemas: sistemasSeleccionadosIds.map(sisId => ({
+                        sistemaId: sisId,
+                        detalle: seleccionSistemas[sisId].detalle || undefined
+                    }))
+                };
+                if (solicitudEdit.estado === 'OBSERVADO') {
+                    payload.id_estado_solicitud = 1;
+                }
                 await api.updateSolicitud(solicitudEdit.id, payload);
                 toast.success('Solicitud actualizada correctamente.');
             } else {
-                await api.createSolicitudAlta(payload, archivoSustento || undefined);
-                toast.success('Solicitud creada con éxito!');
+                // ALTA o MODIFICACION (nueva)
+                const payload: any = {
+                    usuarioObjetivoId: initialUser?.id_usuario || 0,
+                    usuarioObjetivoNombre: nombre,
+                    usuarioObjetivoDniRuc: dni,
+                    cargo: cargo,
+                    oficinaId: parseInt(oficinaId),
+                    creadoPorId: currentUser.id_usuario,
+                    sistemas: sistemasSeleccionadosIds.map(sisId => ({
+                        sistemaId: sisId,
+                        detalle: seleccionSistemas[sisId].detalle || undefined
+                    }))
+                };
 
-                // Limpiar form solo si es creación
-                setNombre('');
-                setDni('');
-                setCargo('');
-                setArchivoSustento(null);
-                if (oficinas.length > 0) setOficinaId(oficinas[0].id);
-                setSeleccionSistemas(prev => {
-                    const reset = { ...prev };
-                    Object.keys(reset).forEach(k => reset[k] = { selected: false, detalle: '' });
-                    return reset;
-                });
+                if (mode === 'MODIFICACION') {
+                    await api.createSolicitudModificacion(payload, archivoSustento || undefined);
+                } else {
+                    await api.createSolicitudAlta(payload, archivoSustento || undefined);
+                }
+                toast.success(mode === 'ALTA' ? 'Solicitud de alta creada!' : 'Solicitud de modificación creada!');
             }
 
-            // Notificar al padre (para recargar lista o cerrar modal)
             setTimeout(() => {
                 onSuccess();
-            }, 1500);
+            }, 1000);
 
         } catch (error) {
             console.error(error);
@@ -176,7 +209,10 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 max-w-2xl mx-auto">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">
-                    {solicitudEdit ? 'Editar Solicitud' : 'Nueva Solicitud de Alta'}
+                    {solicitudEdit ? 'Editar Solicitud' : (
+                        mode === 'ALTA' ? 'Nueva Solicitud de Alta' :
+                            mode === 'BAJA' ? 'Solicitud de Baja' : 'Modificación de Sistemas'
+                    )}
                 </h2>
                 {solicitudEdit && (
                     <div className="flex flex-col items-end">
@@ -208,6 +244,7 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
 
 
             <form onSubmit={handleSubmit} className="space-y-6">
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">Nombre Completo</label>
@@ -295,50 +332,72 @@ export const OgaAltaForm: React.FC<OgaAltaFormProps> = ({ solicitudEdit, initial
                 </div>
 
                 <div className="border-t border-gray-100 pt-6">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4">Sistemas Requeridos</h4>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                        {mode === 'BAJA' ? 'Sistemas a Retirar' : 'Sistemas Requeridos'}
+                    </h4>
                     <div className="grid grid-cols-1 gap-4">
-                        {sistemas.map(sis => {
-                            const isSelected = seleccionSistemas[sis.id]?.selected || false;
-                            return (
-                                <div
-                                    key={sis.id}
-                                    className={`
-                        p-4 rounded-lg border transition-all duration-200
-                        ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}
-                    `}
-                                >
-                                    <label className="flex items-center cursor-pointer">
-                                        <div className="relative flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={isSelected}
-                                                onChange={e => handleSystemCheck(sis.id, e.target.checked)}
-                                                className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 shadow-sm checked:border-blue-500 checked:bg-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
-                                            />
-                                            <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                        </div>
-                                        <span className="ml-3 font-medium text-gray-700">{sis.nombre}</span>
-                                    </label>
+                        {sistemas
+                            .filter(sis => {
+                                if (mode === 'BAJA') {
+                                    // En BAJA solo mostrar los que el usuario ya tiene
+                                    return initialUser?.sistemas?.includes(sis.id);
+                                }
+                                return true;
+                            })
+                            .map(sis => {
+                                const sel = seleccionSistemas[sis.id] || { selected: false, detalle: '', locked: false };
+                                const isSelected = sel.selected;
+                                const isLocked = sel.locked && mode === 'MODIFICACION';
 
-                                    {sis.requiereDetalle && isSelected && (
-                                        <div className="mt-3 ml-8 animate-fadeIn">
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                                                Detalle requerido (Rutas, nombres, etc)
-                                            </label>
-                                            <textarea
-                                                rows={2}
-                                                className="w-full p-2 text-sm rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                                                value={seleccionSistemas[sis.id]?.detalle}
-                                                onChange={e => handleSystemDetailChange(sis.id, e.target.value)}
-                                                placeholder='Especifique detalles necesarios...'
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                return (
+                                    <div
+                                        key={sis.id}
+                                        className={`
+                                            p-4 rounded-lg border transition-all duration-200
+                                            ${isSelected ? (mode === 'BAJA' ? 'border-red-500 bg-red-50' : 'border-blue-500 bg-blue-50') : 'border-gray-200 hover:border-blue-300'}
+                                            ${isLocked ? 'opacity-75 bg-gray-50' : ''}
+                                        `}
+                                    >
+                                        <label className={`flex items-center ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                            <div className="relative flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    disabled={isLocked}
+                                                    onChange={e => handleSystemCheck(sis.id, e.target.checked)}
+                                                    className={`peer h-5 w-5 appearance-none rounded border border-gray-300 shadow-sm focus:ring-2 focus:ring-offset-0 ${mode === 'BAJA'
+                                                        ? 'checked:border-red-500 checked:bg-red-500 focus:ring-red-500'
+                                                        : 'checked:border-blue-500 checked:bg-blue-500 focus:ring-blue-500'
+                                                        } ${isLocked ? 'bg-gray-200 border-gray-400' : 'cursor-pointer'}`}
+                                                />
+                                                <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <span className="font-medium text-gray-700">{sis.nombre}</span>
+                                                {isLocked && <span className="ml-2 text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold uppercase">Ya asignado</span>}
+                                            </div>
+                                        </label>
+
+                                        {sis.requiereDetalle && isSelected && mode !== 'BAJA' && (
+                                            <div className="mt-3 ml-8 animate-fadeIn">
+                                                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                                                    Detalle requerido (Rutas, nombres, etc)
+                                                </label>
+                                                <textarea
+                                                    rows={2}
+                                                    disabled={isLocked}
+                                                    className="w-full p-2 text-sm rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none disabled:bg-gray-50 disabled:text-gray-500"
+                                                    value={sel.detalle}
+                                                    onChange={e => handleSystemDetailChange(sis.id, e.target.value)}
+                                                    placeholder='Especifique detalles necesarios...'
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                     </div>
                 </div>
 

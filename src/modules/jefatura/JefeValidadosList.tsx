@@ -58,7 +58,7 @@ export const JefeValidadosList: React.FC = () => {
                                     VALIDADO
                                 </span>
                             </div>
-                            <p className="text-sm text-gray-500">{sol.cargo} • Oficina: {sol.oficinaId}</p>
+                            <p className="text-sm text-gray-500">{sol.cargo} • Oficina: {sol.oficinaNombre}</p>
 
                             <div className="mt-4 w-64">
                                 <ProgressBar value={calcularProgreso(sol)} />

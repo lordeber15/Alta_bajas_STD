@@ -26,14 +26,15 @@ export const EticChecklist: React.FC<EticChecklistProps> = ({ filterMode = 'PEND
             // Cargamos de alta y baja
             const altas = await api.getSolicitudesPendientesAlta();
             const bajas = await api.getSolicitudesPendientesBaja();
+            const modificaciones = await api.getSolicitudesPendientesModificacion();
             const validadas = await api.getSolicitudesValidadas(); // For historical
             const paraValidar = await api.getSolicitudesParaValidar(); // Status 3
 
             let filtered: SolicitudConSistemas[] = [];
 
             if (filterMode === 'PENDING') {
-                // Filtramos solo las que están EN_PROCESO (2)
-                filtered = [...altas, ...bajas].filter(s => s.estado.includes('EN_PROCESO'));
+                // Filtramos las que están EN_PROCESO (2) o en fase TECNICO (3)
+                filtered = [...altas, ...bajas, ...modificaciones].filter(s => s.estado.includes('EN_PROCESO') || s.estado.includes('TECNICO'));
             } else {
                 // Enviadas a validar (3) o Validadas/Completadas (4)
                 filtered = [...paraValidar, ...validadas];
@@ -122,23 +123,45 @@ export const EticChecklist: React.FC<EticChecklistProps> = ({ filterMode = 'PEND
                             <div className="flex gap-4">
                                 {filterMode === 'PENDING' ? (
                                     Math.round(calcularProgreso(solicitudToView)) === 100 ? (
-                                        <button
-                                            onClick={async () => {
-                                                try {
-                                                    const nextState = solicitudToView.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA';
-                                                    await api.cambiarEstadoSolicitud(solicitudToView.id, nextState as any);
-                                                    toast.success('Paso técnico completado. Enviado a Coordinación.');
-                                                    loadSolicitudes();
-                                                    setSolicitudToView(null);
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    toast.error('Error al finalizar.');
-                                                }
-                                            }}
-                                            className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
-                                        >
-                                            FINALIZAR Y ENVIAR A VALIDAR
-                                        </button>
+                                        <div className="flex flex-col gap-2 w-full">
+                                            {solicitudToView.estado.includes('EN_PROCESO') ? (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const nextState = solicitudToView.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA';
+                                                            await api.cambiarEstadoSolicitud(solicitudToView.id, nextState as any);
+                                                            toast.success('Validación técnica completada. Enviado a Jefatura.');
+                                                            loadSolicitudes();
+                                                            setSolicitudToView(null);
+                                                        } catch (e) {
+                                                            console.error(e);
+                                                            toast.error('Error al enviar a validación.');
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
+                                                >
+                                                    FINALIZAR Y ENVIAR A JEFATURA
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const nextState = solicitudToView.tipo === 'ALTA' ? 'PARA_VALIDAR_ALTA' : 'PARA_VALIDAR_BAJA';
+                                                            await api.cambiarEstadoSolicitud(solicitudToView.id, nextState as any);
+                                                            toast.success('Paso técnico completado. Enviado a Coordinación.');
+                                                            loadSolicitudes();
+                                                            setSolicitudToView(null);
+                                                        } catch (e) {
+                                                            console.error(e);
+                                                            toast.error('Error al finalizar.');
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
+                                                >
+                                                    FINALIZAR Y ENVIAR A VALIDAR
+                                                </button>
+                                            )}
+                                        </div>
                                     ) : (
                                         <button
                                             onClick={() => setShowObsModal(true)}

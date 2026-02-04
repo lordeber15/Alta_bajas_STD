@@ -10,16 +10,24 @@ export type RolUsuario = 'OGA' | 'ETIC' | 'JEFE_ETIC';
 export type EstadoSolicitud =
     | 'PENDIENTE_ALTA'
     | 'EN_PROCESO_ALTA'
+    | 'TECNICO_ALTA'
     | 'PARA_VALIDAR_ALTA'
     | 'COMPLETADO_ALTA'
     | 'PENDIENTE_BAJA'
     | 'EN_PROCESO_BAJA'
+    | 'TECNICO_BAJA'
     | 'PARA_VALIDAR_BAJA'
     | 'COMPLETADO_BAJA'
-    | 'OBSERVADO';
+    | 'PENDIENTE_MODIFICACION'
+    | 'EN_PROCESO_MODIFICACION'
+    | 'TECNICO_MODIFICACION'
+    | 'PARA_VALIDAR_MODIFICACION'
+    | 'COMPLETADO_MODIFICACION'
+    | 'OBSERVADO'
+    | 'ANULADO';
 
 // Tipo de solicitud
-export type TipoSolicitud = 'ALTA' | 'BAJA';
+export type TipoSolicitud = 'ALTA' | 'BAJA' | 'MODIFICACION';
 
 // Modelo de Usuario
 export interface Usuario {
@@ -71,6 +79,7 @@ export interface Solicitud {
     id: string;
     tipo: TipoSolicitud;
     // Datos del usuario objetivo (a quien se le da el alta/baja)
+    usuarioObjetivoId: number;
     usuarioObjetivoNombre: string;
     usuarioObjetivoDniRuc: string;
     cargo: string;

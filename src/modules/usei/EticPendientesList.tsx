@@ -21,7 +21,8 @@ export const EticPendientesList: React.FC = () => {
         try {
             const altas = await api.getSolicitudesPendientesAlta();
             const bajas = await api.getSolicitudesPendientesBaja();
-            const pendientes = [...altas, ...bajas].filter(s => s.estado.includes('PENDIENTE'));
+            const modificaciones = await api.getSolicitudesPendientesModificacion();
+            const pendientes = [...altas, ...bajas, ...modificaciones].filter(s => s.estado.includes('PENDIENTE'));
             setSolicitudes(pendientes.sort((a, b) => new Date(a.fechaCreacion).getTime() - new Date(b.fechaCreacion).getTime()));
         } catch (error) {
             console.error(error);
